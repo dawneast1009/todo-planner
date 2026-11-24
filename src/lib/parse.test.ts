@@ -7,7 +7,7 @@ const p = (s: string) => parseQuickInput(s, TODAY);
 
 describe('parseQuickInput', () => {
   it('날짜가 없으면 언젠가 할 일', () => {
-    expect(p('우유 사기')).toEqual({ title: '우유 사기', date: null, time: null, group: null });
+    expect(p('우유 사기')).toEqual({ title: '우유 사기', date: null, time: null, group: null, repeat: null });
   });
 
   it('오늘·내일·모레·글피', () => {
@@ -113,5 +113,42 @@ describe('parseQuickInput', () => {
 
   it('제목이 남지 않으면 원문을 제목으로', () => {
     expect(p('내일')).toMatchObject({ title: '내일', date: '2026-11-25' });
+  });
+});
+
+describe('반복', () => {
+  it('매일: 오늘부터', () => {
+    expect(p('매일 영어 단어')).toMatchObject({ repeat: { freq: 'daily' }, date: TODAY, title: '영어 단어' });
+  });
+
+  it('매주 요일들: 첫 날짜는 오늘 이후 가장 가까운 그 요일', () => {
+    // 오늘은 화요일
+    expect(p('매주 월수금 4시 학원')).toMatchObject({
+      repeat: { freq: 'weekly', days: [1, 3, 5] },
+      date: '2026-11-25',
+      time: '16:00',
+      title: '학원',
+    });
+    expect(p('매주 월요일 학원')).toMatchObject({ repeat: { freq: 'weekly', days: [1] }, date: '2026-11-30' });
+    expect(p('매주 화 학원').date).toBe(TODAY);
+  });
+
+  it('평일·주말·매주', () => {
+    expect(p('평일 아침 운동').repeat).toEqual({ freq: 'weekly', days: [1, 2, 3, 4, 5] });
+    expect(p('주말 청소')).toMatchObject({ repeat: { freq: 'weekly', days: [0, 6] }, date: '2026-11-28' });
+    expect(p('매주 분리수거').repeat).toEqual({ freq: 'weekly', days: [2] });
+  });
+
+  it('매월 며칠', () => {
+    expect(p('매월 25일 용돈 정리')).toMatchObject({ repeat: { freq: 'monthly', day: 25 }, date: '2026-11-25' });
+    expect(p('매달 1일 계획 세우기').date).toBe('2026-12-01');
+  });
+
+  it('반복 시작일을 따로 적으면 그 날부터', () => {
+    expect(p('12/1 매일 스트레칭')).toMatchObject({ repeat: { freq: 'daily' }, date: '2026-12-01' });
+  });
+
+  it('반복이 아닌 말은 건드리지 않는다', () => {
+    expect(p('매일유업 우유').repeat).toBeNull();
   });
 });

@@ -1,4 +1,6 @@
+import type { RepeatRule } from '../store/types';
 import { addDays, fromISO, makeDate, mondayOf, toISO } from './date';
+import { firstDateFor } from './repeat';
 
 /**
  * 입력창 한 줄을 제목·날짜·시간·그룹으로 나눈다.
@@ -12,9 +14,11 @@ import { addDays, fromISO, makeDate, mondayOf, toISO } from './date';
  */
 export interface Parsed {
   title: string;
+  /** 반복이면 첫 반복 날짜 */
   date: string | null;
   time: string | null;
   group: string | null;
+  repeat: RepeatRule | null;
 }
 
 // 한글에는 \b가 통하지 않아서 공백·문장 끝을 경계로 쓴다.
@@ -151,6 +155,35 @@ const TIME_RULES: TimeRule[] = [
 
 const GROUP_RE = new RegExp(`${B}#(\\S+)`);
 
+type RepeatRuleDef = { re: RegExp; resolve: (m: RegExpExecArray, today: string) => RepeatRule | null };
+
+// 반복 표현. 요일 날짜 규칙보다 먼저 봐야 '매주 월요일'의 '월요일'을 날짜로 잡지 않는다.
+const REPEAT_RULES: RepeatRuleDef[] = [
+  { re: new RegExp(`${B}(?:매일|날마다)${E}`), resolve: () => ({ freq: 'daily' }) },
+  {
+    re: new RegExp(`${B}평일(?:마다)?${E}`),
+    resolve: () => ({ freq: 'weekly', days: [1, 2, 3, 4, 5] }),
+  },
+  { re: new RegExp(`${B}주말(?:마다)?${E}`), resolve: () => ({ freq: 'weekly', days: [0, 6] }) },
+  {
+    // 매주 월요일, 매주 월수금, 매주 화목, 매주 금욜
+    re: new RegExp(`${B}(?:매주|주마다)\\s*([${WEEKDAY}]{1,7})(?:요일|욜)?(?:마다)?${E}`),
+    resolve: (m) => ({
+      freq: 'weekly',
+      days: [...new Set([...m[1]].map((c) => WEEKDAY.indexOf(c)))].sort(),
+    }),
+  },
+  {
+    // '매주'만 있으면 오늘 요일마다
+    re: new RegExp(`${B}(?:매주|주마다)${E}`),
+    resolve: (_m, today) => ({ freq: 'weekly', days: [fromISO(today).getDay()] }),
+  },
+  {
+    re: new RegExp(`${B}(?:매월|매달|달마다)\\s*(\\d{1,2})일${E}`),
+    resolve: (m) => (+m[1] >= 1 && +m[1] <= 31 ? { freq: 'monthly', day: +m[1] } : null),
+  },
+];
+
 function cut(text: string, m: RegExpExecArray): string {
   return text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length);
 }
@@ -167,6 +200,18 @@ export function parseQuickInput(input: string, today: string): Parsed {
     text = cut(text, g);
   }
 
+  let repeat: RepeatRule | null = null;
+  for (const rule of REPEAT_RULES) {
+    const m = rule.re.exec(text);
+    if (!m) continue;
+    const resolved = rule.resolve(m, today);
+    if (resolved) {
+      repeat = resolved;
+      text = cut(text, m);
+      break;
+    }
+  }
+
   for (const rule of DATE_RULES) {
     const m = rule.re.exec(text);
     if (!m) continue;
@@ -177,6 +222,9 @@ export function parseQuickInput(input: string, today: string): Parsed {
       break;
     }
   }
+
+  // 반복이면 시작일(따로 적었으면 그 날, 아니면 오늘) 이후 첫 반복 날짜가 날짜가 된다
+  if (repeat) date = firstDateFor(repeat, date ?? today);
 
   for (const rule of TIME_RULES) {
     const m = rule.re.exec(text);
@@ -195,5 +243,5 @@ export function parseQuickInput(input: string, today: string): Parsed {
   let title = text.replace(/\s+/g, ' ').trim();
   if (!title) title = input.trim();
 
-  return { title, date, time, group };
+  return { title, date, time, group, repeat };
 }
