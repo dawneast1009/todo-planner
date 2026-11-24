@@ -288,8 +288,32 @@ function YearlyPicker({
 }) {
   const next = nextOccurrence({ freq: 'yearly', ...value, lunar }, today);
   const maxDay = lunar ? 30 : new Date(2024, value.month, 0).getDate();
+  const [birth, setBirth] = useState('');
+  const [birthNote, setBirthNote] = useState<string | null>(null);
+
+  // 양력 생년월일 → 그 해의 음력 월·일 (태어난 해에 따라 음력 날짜가 달라서 연도가 꼭 필요하다)
+  const fromBirth = (iso: string) => {
+    setBirth(iso);
+    if (!iso) return setBirthNote(null);
+    const l = toLunar(iso);
+    if (!l) return setBirthNote('이 브라우저에서는 음력 계산이 안 돼요.');
+    onChange({ month: l.month, day: l.day });
+    const [y, m, d] = iso.split('-').map(Number);
+    setBirthNote(
+      `${y}년 ${m}월 ${d}일(양력) = 음력 ${l.leap ? '윤' : ''}${l.month}월 ${l.day}일` +
+        (l.leap ? ' · 윤달 생일은 보통 평달에 쇠어서 매년 음력 ' + l.month + '월 ' + l.day + '일로 맞췄어요' : ''),
+    );
+  };
+
   return (
     <>
+      {lunar && (
+        <label className="field">
+          양력 생년월일로 찾기 (선택)
+          <input type="date" value={birth} max={today} onChange={(e) => fromBirth(e.target.value)} />
+        </label>
+      )}
+      {lunar && birthNote && <p className="hint">{birthNote}</p>}
       <div className="field-row">
         <label>
           {lunar ? '음력 월' : '월'}
@@ -325,8 +349,8 @@ function YearlyPicker({
       </div>
       {next && (
         <p className="hint">
-          다음: {shortLabel(next, today)}
-          {lunar && ` (양력 ${Number(next.slice(0, 4))}년 ${Number(next.slice(5, 7))}월 ${Number(next.slice(8, 10))}일)`}
+          다음: {lunar ? '양력 ' : ''}
+          {shortLabel(next, today)}
         </p>
       )}
     </>
