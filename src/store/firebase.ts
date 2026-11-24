@@ -1,6 +1,5 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  browserLocalPersistence,
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   getAuth,
@@ -8,7 +7,6 @@ import {
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
-  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -48,8 +46,9 @@ function init() {
   if (!firebaseEnabled) throw new Error('Firebase 설정이 없습니다');
   if (!app) {
     app = initializeApp(config);
+    // getAuth는 기본으로 로그인을 브라우저(IndexedDB)에 저장해서 껐다 켜도 유지된다.
+    // 시작할 때 setPersistence를 따로 부르면 저장된 로그인을 읽는 것과 겹칠 수 있어서 부르지 않는다.
     auth = getAuth(app);
-    void setPersistence(auth, browserLocalPersistence);
     // 오프라인에서도 읽고 쓸 수 있게 기기에 캐시해 둔다
     db = initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
