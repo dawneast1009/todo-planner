@@ -69,3 +69,12 @@ describe('반복 백업', () => {
     expect(parseBackup(text).items[0].repeat).toBeNull();
   });
 });
+
+describe('매년 반복 백업', () => {
+  it('양력·음력 매년 규칙을 지킨다', () => {
+    const solar = { ...item, id: 'y1', repeat: { freq: 'yearly' as const, month: 12, day: 25 } };
+    const lunar = { ...item, id: 'y2', repeat: { freq: 'yearly' as const, month: 8, day: 15, lunar: true } };
+    const out = parseBackup(backupFileContent([solar, lunar], [group])).items;
+    expect(out.map((i) => i.repeat)).toEqual([solar.repeat, lunar.repeat]);
+  });
+});

@@ -41,6 +41,14 @@ function parseRepeat(v: unknown): RepeatRule | null {
   if (r.freq === 'monthly' && Number.isInteger(r.day) && (r.day as number) >= 1 && (r.day as number) <= 31) {
     return { freq: 'monthly', day: r.day as number };
   }
+  const y = v as { month?: unknown; day?: unknown; lunar?: unknown };
+  if (r.freq === 'yearly' && Number.isInteger(y.month) && Number.isInteger(y.day)) {
+    const month = y.month as number;
+    const day = y.day as number;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= (y.lunar === true ? 30 : 31)) {
+      return y.lunar === true ? { freq: 'yearly', month, day, lunar: true } : { freq: 'yearly', month, day };
+    }
+  }
   return null;
 }
 

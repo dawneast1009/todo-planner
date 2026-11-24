@@ -4,6 +4,7 @@ import { ItemList } from './ItemRow';
 import { QuickAdd } from './QuickAdd';
 import { PartialHint, SchoolEvents } from './School';
 import { makeDate, shortLabel, toISO } from '../lib/date';
+import { lunarLabel } from '../lib/lunar';
 import { expandItems } from '../lib/repeat';
 import { itemsOnDate } from '../lib/views';
 import { useMonthEvents } from '../school';
@@ -127,6 +128,7 @@ export function MonthCalendar({ items, groupId, showSchool }: Props) {
           <>
             <h3 className="date-title">
               <span>{shortLabel(selected)}</span>
+              {lunarLabel(selected) && <span className="date-rel">{lunarLabel(selected)}</span>}
             </h3>
             <QuickAdd date={selected} groupId={groupId} placeholder={`${shortLabel(selected)}에 추가`} />
             <SchoolEvents events={dayEvents} />

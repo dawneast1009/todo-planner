@@ -4,13 +4,16 @@ import { addDays, shortLabel } from '../lib/date';
 import type { Attachment, Item, ItemKind, RepeatRule } from '../store/types';
 import { Attachments } from './Attachments';
 import { extractLinks } from '../lib/links';
+import { lunarSupported, toLunar } from '../lib/lunar';
+import { nextOccurrence } from '../lib/repeat';
 
 const NEW_GROUP = '__new__';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 // 월요일부터 보여준다
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
-type Freq = 'none' | RepeatRule['freq'];
+// 편집 창에서는 매년을 양력·음력 두 가지로 나눠 고른다
+type Freq = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'yearly-lunar';
 
 /**
  * 항목을 눌렀을 때 뜨는 편집 창. 닫으면 저장된다.
@@ -25,17 +28,34 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
   const [kind, setKind] = useState<ItemKind>(item.kind);
   const [groupId, setGroupId] = useState(item.groupId ?? '');
   const [important, setImportant] = useState(item.important);
-  const [freq, setFreq] = useState<Freq>(item.repeat?.freq ?? 'none');
+  const [freq, setFreq] = useState<Freq>(
+    item.repeat?.freq === 'yearly' && item.repeat.lunar ? 'yearly-lunar' : (item.repeat?.freq ?? 'none'),
+  );
   const [weekDays, setWeekDays] = useState<number[]>(
     item.repeat?.freq === 'weekly' ? item.repeat.days : [new Date().getDay()],
   );
   const [monthDay, setMonthDay] = useState(item.repeat?.freq === 'monthly' ? item.repeat.day : new Date().getDate());
+  // 매년: 처음엔 항목 날짜(없으면 오늘)의 양력/음력 월·일
+  const baseIso = item.date ?? today;
+  const baseLunar = toLunar(baseIso);
+  const [yearSolar, setYearSolar] = useState(() =>
+    item.repeat?.freq === 'yearly' && !item.repeat.lunar
+      ? { month: item.repeat.month, day: item.repeat.day }
+      : { month: Number(baseIso.slice(5, 7)), day: Number(baseIso.slice(8, 10)) },
+  );
+  const [yearLunar, setYearLunar] = useState(() =>
+    item.repeat?.freq === 'yearly' && item.repeat.lunar
+      ? { month: item.repeat.month, day: item.repeat.day }
+      : { month: baseLunar?.month ?? 1, day: baseLunar?.day ?? 1 },
+  );
   const [attachments, setAttachments] = useState<Attachment[]>(item.attachments ?? []);
 
   const buildRepeat = (): RepeatRule | null => {
     if (freq === 'daily') return { freq: 'daily' };
     if (freq === 'weekly') return weekDays.length ? { freq: 'weekly', days: [...weekDays].sort() } : null;
     if (freq === 'monthly') return { freq: 'monthly', day: monthDay };
+    if (freq === 'yearly') return { freq: 'yearly', ...yearSolar };
+    if (freq === 'yearly-lunar') return { freq: 'yearly', ...yearLunar, lunar: true };
     return null;
   };
 
@@ -127,6 +147,8 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
             <option value="daily">매일</option>
             <option value="weekly">매주 (요일 고르기)</option>
             <option value="monthly">매월</option>
+            <option value="yearly">매년 (양력)</option>
+            {lunarSupported() && <option value="yearly-lunar">매년 (음력) · 생신·제사</option>}
           </select>
         </label>
         {freq === 'weekly' && (
@@ -146,6 +168,14 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
               );
             })}
           </div>
+        )}
+        {(freq === 'yearly' || freq === 'yearly-lunar') && (
+          <YearlyPicker
+            value={freq === 'yearly' ? yearSolar : yearLunar}
+            lunar={freq === 'yearly-lunar'}
+            onChange={freq === 'yearly' ? setYearSolar : setYearLunar}
+            today={today}
+          />
         )}
         {freq === 'monthly' && (
           <label className="field">
@@ -241,5 +271,64 @@ function MemoLinks({ memo }: { memo: string }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** 매년 반복의 월·일 고르기. 다음 날짜(음력이면 양력으로 바꾼 날짜)를 같이 보여준다. */
+function YearlyPicker({
+  value,
+  lunar,
+  onChange,
+  today,
+}: {
+  value: { month: number; day: number };
+  lunar: boolean;
+  onChange: (v: { month: number; day: number }) => void;
+  today: string;
+}) {
+  const next = nextOccurrence({ freq: 'yearly', ...value, lunar }, today);
+  const maxDay = lunar ? 30 : new Date(2024, value.month, 0).getDate();
+  return (
+    <>
+      <div className="field-row">
+        <label>
+          {lunar ? '음력 월' : '월'}
+          <select
+            value={value.month}
+            onChange={(e) => {
+              const month = Number(e.target.value);
+              // 그 달에 없는 날이 되지 않게 맞춘다 (예: 1월 31일 → 2월이면 29일)
+              const max = lunar ? 30 : new Date(2024, month, 0).getDate();
+              onChange({ month, day: Math.min(value.day, max) });
+            }}
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {m}월
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {lunar ? '음력 일' : '일'}
+          <select
+            value={Math.min(value.day, maxDay)}
+            onChange={(e) => onChange({ ...value, day: Number(e.target.value) })}
+          >
+            {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>
+                {d}일
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {next && (
+        <p className="hint">
+          다음: {shortLabel(next)}
+          {lunar && ` (양력 ${Number(next.slice(0, 4))}년 ${Number(next.slice(5, 7))}월 ${Number(next.slice(8, 10))}일)`}
+        </p>
+      )}
+    </>
   );
 }
