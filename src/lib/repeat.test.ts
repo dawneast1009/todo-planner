@@ -71,3 +71,26 @@ describe('repeatLabel', () => {
     expect(repeatLabel({ freq: 'daily' })).toBe('매일');
   });
 });
+
+describe('매년', () => {
+  it('양력 매년', () => {
+    // 한 번에 400일까지만 본다 (달력은 한 달씩 펼친다)
+    expect(occurrences({ freq: 'yearly', month: 12, day: 25 }, '2026-12-01', '2026-12-01', '2027-12-31')).toEqual([
+      '2026-12-25',
+      '2027-12-25',
+    ]);
+  });
+
+  it('양력 2월 29일은 윤년이 아니면 2월 28일', () => {
+    expect(occurrences({ freq: 'yearly', month: 2, day: 29 }, '2027-02-01', '2027-02-01', '2028-03-01')).toEqual([
+      '2027-02-28',
+      '2028-02-29',
+    ]);
+  });
+
+  it('음력 매년: 해마다 양력 날짜가 바뀐다 (추석)', () => {
+    const rule = { freq: 'yearly' as const, month: 8, day: 15, lunar: true };
+    expect(occurrences(rule, '2026-09-01', '2026-09-01', '2027-09-30')).toEqual(['2026-09-25', '2027-09-15']);
+    expect(repeatLabel(rule)).toBe('매년 음력 8월 15일');
+  });
+});

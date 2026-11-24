@@ -4,8 +4,14 @@ export type ItemKind = 'todo' | 'event';
 /**
  * 반복 규칙. 시작 날짜는 Item.date.
  * weekly.days: 0=일 … 6=토, monthly.day: 1~31 (그 달에 없으면 그 달은 건너뜀)
+ * yearly: 양력 2월 29일은 윤년에만, 음력 30일은 그 해 그 달에 30일이 없으면 29일
  */
-export type RepeatRule = { freq: 'daily' } | { freq: 'weekly'; days: number[] } | { freq: 'monthly'; day: number };
+export type RepeatRule =
+  | { freq: 'daily' }
+  | { freq: 'weekly'; days: number[] }
+  | { freq: 'monthly'; day: number }
+  /** 매년 month월 day일. lunar면 음력 날짜 (해마다 양력 날짜가 바뀐다) */
+  | { freq: 'yearly'; month: number; day: number; lunar?: boolean };
 
 /** 첨부 파일 정보. 내용은 따로 조각내서 저장한다 (FileStore). */
 export interface Attachment {

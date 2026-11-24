@@ -1,11 +1,13 @@
 import type { Item, RepeatRule } from '../store/types';
 import { addDays, diffDays, fromISO } from './date';
+import { isLunarDay } from './lunar';
 
 const WEEKDAY = '일월화수목금토';
 
 export function repeatLabel(rule: RepeatRule): string {
   if (rule.freq === 'daily') return '매일';
   if (rule.freq === 'monthly') return `매월 ${rule.day}일`;
+  if (rule.freq === 'yearly') return `매년 ${rule.lunar ? '음력 ' : ''}${rule.month}월 ${rule.day}일`;
   const days = [...rule.days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
   if (days.join() === '1,2,3,4,5') return '평일';
   if (days.length === 2 && days.includes(0) && days.includes(6)) return '주말';
@@ -17,6 +19,14 @@ function matches(rule: RepeatRule, iso: string): boolean {
   const d = fromISO(iso);
   if (rule.freq === 'daily') return true;
   if (rule.freq === 'weekly') return rule.days.includes(d.getDay());
+  if (rule.freq === 'yearly') {
+    if (rule.lunar) return isLunarDay(iso, rule.month, rule.day);
+    if (d.getMonth() + 1 !== rule.month) return false;
+    // 양력 2월 29일은 윤년이 아니면 2월 28일에
+    const leapYear = new Date(d.getFullYear(), 1, 29).getMonth() === 1;
+    if (rule.month === 2 && rule.day === 29 && !leapYear) return d.getDate() === 28;
+    return d.getDate() === rule.day;
+  }
   return d.getDate() === rule.day;
 }
 
@@ -34,7 +44,8 @@ export function occurrences(rule: RepeatRule, start: string, from: string, to: s
 
 /** from 이후(포함) 첫 반복 날짜. 없으면 null (안전장치). */
 export function nextOccurrence(rule: RepeatRule, from: string): string | null {
-  return occurrences(rule, from, from, addDays(from, 366))[0] ?? null;
+  // 음력 한 해는 윤달이 있으면 384~385일이라 넉넉히 본다
+  return occurrences(rule, from, from, addDays(from, 400))[0] ?? null;
 }
 
 /** 반복 항목 하나를 특정 날짜의 화면용 항목으로 만든다. */
