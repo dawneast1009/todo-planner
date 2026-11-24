@@ -9,3 +9,4 @@ dev-dist/
 
 # 개인적인 기획 메모는 공개 레포에 올리지 않음
 docs/intent/
+dist-notify/
