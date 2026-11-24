@@ -53,11 +53,7 @@ function CloudApp() {
               로그아웃
             </button>
           </div>
-          {hasPassword(user) && (
-            <div className="account-extra">
-              <ChangePassword />
-            </div>
-          )}
+          {user.email && <ChangePassword email={user.email} hasPassword={hasPassword(user)} />}
         </>
       }
     />
@@ -73,18 +69,23 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
 
   const groupName = useCallback((id: string | null) => groups.find((g) => g.id === id)?.name ?? null, [groups]);
 
+  const ensureGroup = useCallback(
+    (raw: string) => {
+      const name = raw.trim().replace(/^#/, '');
+      const existing = groups.find((g) => g.name.toLowerCase() === name.toLowerCase());
+      if (existing) return existing.id;
+      const id = newId();
+      store.putGroup({ id, name, createdAt: Date.now() });
+      return id;
+    },
+    [groups, store],
+  );
+
   const addFromText = useCallback(
     (text: string, defaults: AddDefaults = {}) => {
       const p = parseQuickInput(text, today);
-      let groupId = defaults.groupId ?? null;
-      if (p.group) {
-        const existing = groups.find((g) => g.name.toLowerCase() === p.group!.toLowerCase());
-        if (existing) groupId = existing.id;
-        else {
-          groupId = newId();
-          store.putGroup({ id: groupId, name: p.group, createdAt: Date.now() });
-        }
-      }
+      // 글 안의 #그룹이 고른 그룹보다 우선
+      const groupId = p.group ? ensureGroup(p.group) : (defaults.groupId ?? null);
       const date = p.date ?? defaults.date ?? null;
       const now = Date.now();
       const item: Item = {
@@ -104,7 +105,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
       };
       store.putItem(item);
     },
-    [groups, store, today],
+    [ensureGroup, store, today],
   );
 
   const ctx: AppCtx = {
@@ -114,6 +115,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
     groups,
     settings,
     groupName,
+    ensureGroup,
     addFromText,
     toggleDone: (item) =>
       store.putItem({
