@@ -102,7 +102,7 @@ export function useMonthEvents(settings: Settings, month: string) {
   const s = settings.school;
   const key = settings.neisKey;
   return useCachedRemote<SchoolEventsResult>(
-    s ? `ev3:${key ? 'k' : 'nk'}:${s.officeCode}-${s.schoolCode}-${s.grade}:${month}` : null,
+    s ? `ev4:${key ? 'k' : 'nk'}:${s.officeCode}-${s.schoolCode}:${month}` : null,
     () => (key ? fetchSchoolEvents(s!, `${month}-01`, `${month}-31`, key) : fetchEventsKeyless(s!, month)),
     12 * HOUR,
   );

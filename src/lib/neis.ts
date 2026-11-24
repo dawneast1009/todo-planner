@@ -29,6 +29,8 @@ export interface SchoolEvent {
   name: string;
   /** 휴업일·공휴일 여부 */
   holiday: boolean;
+  /** 특정 학년만 해당하면 그 학년들 (예: [1, 2]). 전체 행사면 빈 배열. */
+  grades: number[];
 }
 
 type Row = Record<string, string | null>;
@@ -166,23 +168,24 @@ const GRADE_FLAGS = [
 ];
 
 /**
- * 내 학년 행사만 남긴다. 어느 학년에도 Y가 없으면 전체 행사로 본다.
- * 매주 있는 토요휴업일과 선생님용 행사(교직원 회의 등)는 학생 달력만 어지럽혀서 뺀다.
+ * 나이스 학사일정을 학년으로 거르지 않고 그대로 보여준다 (학교가 학년 표시를 다르게 하는 경우가 많아서).
+ * 매주 토요일마다 들어오는 '토요휴업일'만 뺀다 (토요일 칸이 전부 이걸로 차서).
+ * 특정 학년만 해당하는 행사는 grades에 그 학년을 담아 화면에서 구분해 보여준다.
  */
-export function rowsToSchoolEvents(rows: Row[], grade: string): SchoolEvent[] {
-  const myFlag = GRADE_FLAGS[Number(grade) - 1];
+export function rowsToSchoolEvents(rows: Row[]): SchoolEvent[] {
   const seen = new Set<string>();
   const out: SchoolEvent[] = [];
   for (const r of rows) {
     const name = (r.EVENT_NM ?? '').trim();
-    if (!r.AA_YMD || !name || name === '토요휴업일' || name.includes('교직원')) continue;
-    const anyGrade = GRADE_FLAGS.some((f) => r[f] === 'Y');
-    if (anyGrade && myFlag && r[myFlag] !== 'Y') continue;
+    if (!r.AA_YMD || !name || name === '토요휴업일') continue;
     const date = fromCompact(r.AA_YMD);
     const k = `${date}|${name}`;
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push({ date, name, holiday: (r.SBTR_DD_SC_NM ?? '') !== '해당없음' && !!r.SBTR_DD_SC_NM });
+    const flagged = GRADE_FLAGS.map((f, i) => (r[f] === 'Y' ? i + 1 : 0)).filter(Boolean);
+    // 고등학교는 1~3학년. 세 학년 모두 Y면 전체 행사로 본다.
+    const grades = flagged.length >= 3 || flagged.length === 0 ? [] : flagged;
+    out.push({ date, name, holiday: (r.SBTR_DD_SC_NM ?? '') !== '해당없음' && !!r.SBTR_DD_SC_NM, grades });
   }
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
@@ -210,7 +213,7 @@ export async function fetchSchoolEvents(
     key,
     fetchFn,
   );
-  return { events: rowsToSchoolEvents(rows, school.grade), partial };
+  return { events: rowsToSchoolEvents(rows), partial };
 }
 
 export interface Meal {
