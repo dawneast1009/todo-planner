@@ -19,6 +19,7 @@ const item: Item = {
   repeat: null,
   doneDates: [],
   skipDates: [],
+  attachments: [{ id: 'f1', name: '안내문.pdf', type: 'application/pdf', size: 1234, createdAt: 5 }],
 };
 
 describe('parseBackup', () => {

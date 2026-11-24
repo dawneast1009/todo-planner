@@ -1,4 +1,4 @@
-import type { Group, Item, RepeatRule } from '../store/types';
+import type { Attachment, Group, Item, RepeatRule } from '../store/types';
 
 export interface Backup {
   items: Item[];
@@ -15,6 +15,20 @@ const num = (v: unknown, fallback: number): number => (typeof v === 'number' && 
 const dateOrNull = (v: unknown): string | null => (typeof v === 'string' && DATE_RE.test(v) ? v : null);
 const dateList = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((d): d is string => typeof d === 'string' && DATE_RE.test(d)) : [];
+
+function attachmentList(v: unknown): Attachment[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
+    .filter((a) => str(a.id) && str(a.name))
+    .map((a) => ({
+      id: str(a.id),
+      name: str(a.name),
+      type: str(a.type, 'application/octet-stream'),
+      size: num(a.size, 0),
+      createdAt: num(a.createdAt, 0),
+    }));
+}
 
 function parseRepeat(v: unknown): RepeatRule | null {
   const r = v as { freq?: unknown; days?: unknown; day?: unknown } | null;
@@ -76,6 +90,8 @@ export function parseBackup(text: string): Backup {
         repeat: date ? parseRepeat(i.repeat) : null,
         doneDates: dateList(i.doneDates),
         skipDates: dateList(i.skipDates),
+        // 백업에는 첨부 정보만 있다 (파일 내용은 계정 저장소에 그대로 있다)
+        attachments: attachmentList(i.attachments),
       } satisfies Item;
     });
 
