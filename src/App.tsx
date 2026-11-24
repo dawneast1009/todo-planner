@@ -44,6 +44,7 @@ function CloudApp() {
   return (
     <Main
       store={store}
+      uid={user.uid}
       account={
         <>
           <div className="btn-row">
@@ -63,7 +64,7 @@ function CloudApp() {
   );
 }
 
-function Main({ store, account }: { store: Store; account: React.ReactNode }) {
+function Main({ store, account, uid = null }: { store: Store; account: React.ReactNode; uid?: string | null }) {
   const snap = useSnapshot(store);
   const today = useToday();
   const [page, setPage] = useState<'main' | 'settings'>('main');
@@ -186,7 +187,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
           ) : page === 'main' ? (
             <MainView onOpenSettings={() => setPage('settings')} />
           ) : (
-            <SettingsView account={account} onBack={() => setPage('main')} />
+            <SettingsView account={account} uid={uid} onBack={() => setPage('main')} />
           )}
         </main>
         {editing && (

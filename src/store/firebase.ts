@@ -35,9 +35,15 @@ const config = {
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
   appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
+  // 푸시 알림(FCM)에 필요
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
 };
+// Firebase 콘솔 → 프로젝트 설정 → 클라우드 메시징 → 웹 푸시 인증서 (공개 키라 비밀이 아니다)
+const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
 
 export const firebaseEnabled = Boolean(config.apiKey && config.projectId && config.appId);
+/** 알림에 필요한 설정값이 빌드에 들어있는지 */
+export const pushConfigured = firebaseEnabled && Boolean(vapidKey && config.messagingSenderId);
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
@@ -240,4 +246,63 @@ export function createFirebaseStore(uid: string): Store {
       }
     },
   };
+}
+
+// ---------- 푸시 알림 ----------
+
+const DEVICE_KEY = 'todo-planner:push-device';
+
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function deviceLabel(): string {
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return 'Android';
+  if (/iPhone|iPad/i.test(ua)) return 'iPhone';
+  if (/Windows/i.test(ua)) return 'Windows';
+  if (/Mac/i.test(ua)) return 'Mac';
+  return '기기';
+}
+
+/** 이 브라우저가 푸시 알림을 받을 수 있는지 */
+export async function pushSupported(): Promise<boolean> {
+  if (!pushConfigured || !('Notification' in window) || !('serviceWorker' in navigator)) return false;
+  const { isSupported } = await import('firebase/messaging');
+  return isSupported();
+}
+
+/** 이 기기에서 알림을 켰는지 (권한 + 등록 기록) */
+export function pushEnabledHere(): boolean {
+  return 'Notification' in window && Notification.permission === 'granted' && !!localStorage.getItem(DEVICE_KEY);
+}
+
+/** 알림 권한을 받고 이 기기의 알림 주소(토큰)를 내 계정에 저장한다 */
+export async function enablePush(uid: string): Promise<void> {
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    throw new Error('알림 권한이 꺼져 있어요. 브라우저(또는 폰 설정 → 앱 → 알림)에서 이 사이트 알림을 허용해 주세요.');
+  }
+  const { getMessaging, getToken } = await import('firebase/messaging');
+  init();
+  const registration = await navigator.serviceWorker.ready;
+  const token = await getToken(getMessaging(app!), { vapidKey, serviceWorkerRegistration: registration });
+  const id = (await sha256(token)).slice(0, 40);
+  await setDoc(doc(db!, 'users', uid, 'devices', id), { token, label: deviceLabel(), createdAt: Date.now() });
+  localStorage.setItem(DEVICE_KEY, id);
+}
+
+/** 이 기기 알림 끄기 */
+export async function disablePush(uid: string): Promise<void> {
+  const id = localStorage.getItem(DEVICE_KEY);
+  const { deleteToken, getMessaging } = await import('firebase/messaging');
+  init();
+  try {
+    await deleteToken(getMessaging(app!));
+  } catch {
+    // 이미 없는 토큰이어도 괜찮다
+  }
+  if (id) await deleteDoc(doc(db!, 'users', uid, 'devices', id));
+  localStorage.removeItem(DEVICE_KEY);
 }

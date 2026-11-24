@@ -1429,3 +1429,7 @@ h2 {
   flex: 1;
   min-width: 0;
 }
+
+.notify-options {
+  margin-top: 12px;
+}

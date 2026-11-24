@@ -34,6 +34,20 @@ Firebase 설정이 없으면 **로컬 모드**로 동작해요. 데이터는 그
 2. 마이페이지에서 인증키를 신청한다. 무료이고 바로 발급된다.
 3. 앱의 **설정 → 나이스 인증키**에 넣는다. 키는 레포가 아니라 내 계정 데이터(또는 로컬 모드라면 그 브라우저)에만 저장된다.
 
+## 알림 설정 (Firebase Cloud Messaging + GitHub Actions)
+
+알림은 GitHub Actions(`.github/workflows/notify.yml`)가 5분마다 돌면서 보내요. 무료지만 몇 분 늦게 올 수 있어요.
+
+1. **웹 푸시 키(공개 키)**: Firebase 콘솔 → 프로젝트 설정 → **클라우드 메시징** 탭 → 아래쪽 **웹 푸시 인증서** → **키 쌍 생성**. 나온 키를 GitHub 저장소 Variables에 `VITE_FIREBASE_VAPID_KEY`로 넣는다. 공개 키라 비밀이 아니다.
+2. **보내는 쪽 열쇠(비밀 키)**: Firebase 콘솔 → 프로젝트 설정 → **서비스 계정** 탭 → **새 비공개 키 생성**. JSON 파일이 받아진다.
+   - 이 파일은 **비밀**이다. 레포에 올리거나 채팅에 붙여넣지 않는다.
+   - GitHub 저장소 **Settings → Secrets and variables → Actions → Secrets**에 `FIREBASE_SERVICE_ACCOUNT` 이름으로 파일 내용 전체를 붙여넣는다.
+   - 또는 터미널에서 `gh secret set FIREBASE_SERVICE_ACCOUNT < 받은파일.json` 후 파일을 지운다.
+3. `messagingSenderId`도 Variables에 `VITE_FIREBASE_MESSAGING_SENDER_ID`로 넣는다 (프로젝트 설정 → 일반 → 내 앱의 설정값).
+4. Actions에서 Deploy를 다시 돌리고, 앱의 **설정 → 알림 → 이 기기에서 알림 켜기**를 누른다. 폰과 PC 각각 켜야 한다.
+
+공개 레포라 Actions 로그를 누구나 볼 수 있다. 알림 스크립트는 할 일 내용이나 계정 정보를 로그에 남기지 않고 개수만 남긴다.
+
 ## 배포 (GitHub Pages)
 
 `main`에 푸시하면 `.github/workflows/deploy.yml`이 테스트하고 빌드해서 GitHub Pages에 올린다. 주소는 `https://<사용자명>.github.io/todo-planner/`.

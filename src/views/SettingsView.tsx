@@ -1,11 +1,21 @@
 import { useRef, useState } from 'react';
 import { GroupSettings } from '../components/GroupSettings';
+import { NotificationSettings } from '../components/NotificationSettings';
 import { useApp } from '../context';
 import { BackupError, backupFileContent, parseBackup } from '../lib/backup';
 import { searchSchools, type SchoolInfo } from '../lib/neis';
 import type { SchoolConfig } from '../store/types';
 
-export function SettingsView({ account, onBack }: { account: React.ReactNode; onBack: () => void }) {
+export function SettingsView({
+  account,
+  uid,
+  onBack,
+}: {
+  account: React.ReactNode;
+  /** 로그인한 계정 id (로컬 모드면 null) */
+  uid: string | null;
+  onBack: () => void;
+}) {
   return (
     <div className="settings">
       <header className="view-head">
@@ -18,6 +28,7 @@ export function SettingsView({ account, onBack }: { account: React.ReactNode; on
         <h2>계정</h2>
         {account}
       </section>
+      <NotificationSettings uid={uid} />
       <SchoolSettings />
       <NeisKeySettings />
       <GroupSettings />
