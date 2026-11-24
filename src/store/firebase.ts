@@ -21,10 +21,24 @@ import {
   persistentMultipleTabManager,
   setDoc,
   writeBatch,
+  Bytes,
+  getDoc,
+  getDocsFromServer,
   type Firestore,
   type SnapshotListenOptions,
 } from 'firebase/firestore';
-import { DEFAULT_SETTINGS, type Group, type Item, type Settings, type Snapshot, type Store } from './types';
+import { CHUNK_BYTES, joinChunks, splitChunks } from '../lib/attach';
+import {
+  DEFAULT_SETTINGS,
+  newId,
+  type Attachment,
+  type FileStore,
+  type Group,
+  type Item,
+  type Settings,
+  type Snapshot,
+  type Store,
+} from './types';
 
 // 설정값은 빌드할 때 환경변수로 들어온다 (.env.local 또는 GitHub Variables).
 const config = {
@@ -185,8 +199,62 @@ export function createFirebaseStore(uid: string): Store {
 
   // 쓰기는 기다리지 않는다: 오프라인이면 서버에 닿을 때까지 끝나지 않지만
   // 로컬 캐시에는 바로 반영되고 onSnapshot이 즉시 불린다.
+  // 첨부 파일: users/<uid>/files/<id> 에 정보, 그 아래 chunks/<번호> 에 내용 조각
+  const filesCol = collection(db, base, 'files');
+  const files: FileStore = {
+    async upload(blob, name) {
+      if (!navigator.onLine) throw new Error('파일을 올리려면 인터넷 연결이 필요해요.');
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const parts = splitChunks(bytes, CHUNK_BYTES);
+      const att: Attachment = {
+        id: newId(),
+        name,
+        type: blob.type || (name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'),
+        size: bytes.length,
+        createdAt: Date.now(),
+      };
+      const fileRef = doc(filesCol, att.id);
+      // 조각 먼저, 정보 문서는 마지막에 (정보가 있으면 조각이 다 있다는 뜻)
+      for (const [i, part] of parts.entries()) {
+        await setDoc(doc(fileRef, 'chunks', String(i)), { i, data: Bytes.fromUint8Array(part) });
+      }
+      await setDoc(fileRef, { ...att, chunks: parts.length });
+      return att;
+    },
+    async read(att) {
+      const fileRef = doc(filesCol, att.id);
+      const info = await getDoc(fileRef);
+      if (!info.exists()) throw new Error('파일을 찾을 수 없어요. 지워졌을 수 있어요.');
+      const n = Number(info.get('chunks') ?? 0);
+      const parts = await Promise.all(
+        Array.from({ length: n }, (_, i) => getDoc(doc(fileRef, 'chunks', String(i)))),
+      );
+      const bytes = joinChunks(parts.map((d) => (d.get('data') as Bytes).toUint8Array()));
+      return new Blob([bytes], { type: att.type });
+    },
+    async cleanup() {
+      // 서버에서 새로 읽는다. 오프라인이면 여기서 실패하고 아무것도 지우지 않는다.
+      const [itemsNow, all] = await Promise.all([getDocsFromServer(itemsCol), getDocsFromServer(filesCol)]);
+      const usedIds = new Set(itemsNow.docs.flatMap((d) => ((d.get('attachments') ?? []) as Attachment[]).map((a) => a.id)));
+      // 올리는 중이거나 아직 편집 창이 열려 있을 수 있어서 하루 지난 것만 지운다
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      let removed = 0;
+      for (const f of all.docs) {
+        if (usedIds.has(f.id) || Number(f.get('createdAt') ?? 0) > cutoff) continue;
+        const chunks = await getDocsFromServer(collection(f.ref, 'chunks'));
+        const batch = writeBatch(db);
+        chunks.docs.forEach((c) => batch.delete(c.ref));
+        batch.delete(f.ref);
+        await batch.commit();
+        removed++;
+      }
+      return removed;
+    },
+  };
+
   return {
     mode: 'cloud',
+    files,
     subscribe(cb) {
       listeners.add(cb);
       if (listeners.size === 1) start();
