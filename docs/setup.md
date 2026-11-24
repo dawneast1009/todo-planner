@@ -22,7 +22,9 @@ Firebase 설정이 없으면 **로컬 모드**로 동작해요. 데이터는 그
    - 로컬: `.env.example`을 `.env.local`로 복사해서 값을 채운다. 이 파일은 git에 올라가지 않는다.
    - 배포: GitHub 저장소 **Settings → Secrets and variables → Actions → Variables**에
      `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`를 추가한다.
-7. Actions에서 Deploy를 다시 실행하거나 새로 푸시하면 로그인 화면이 나온다. 처음 한 번 "계정 만들기"를 누른 뒤, 다른 기기에서는 같은 계정으로 로그인하면 된다.
+7. 개인용이라 앱에는 가입 버튼이 없다. 계정은 Firebase 콘솔 **Authentication → 사용자 → 사용자 추가**에서 이메일·비밀번호로 만든다.
+8. 다른 사람이 가입하지 못하게 **Authentication → 설정 → 사용자 작업**에서 **만들기(가입) 사용 설정**을 끈다.
+9. Actions에서 Deploy를 다시 실행하거나 새로 푸시하면 로그인 화면이 나온다. 모든 기기에서 같은 계정으로 로그인하면 된다.
 
 > Firebase 웹 설정값은 비밀번호 같은 비밀 키가 아니라 공개 식별자예요. 실제 보호는 5번의 보안 규칙이 맡아요.
 

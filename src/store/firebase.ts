@@ -1,14 +1,11 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  createUserWithEmailAndPassword,
   EmailAuthProvider,
   getAuth,
-  GoogleAuthProvider,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   updatePassword,
   type Auth,
@@ -68,14 +65,9 @@ export function watchUser(cb: (user: User | null) => void): () => void {
   return onAuthStateChanged(init().auth, cb);
 }
 
-export async function signInGoogle() {
-  await signInWithPopup(init().auth, new GoogleAuthProvider());
-}
-
-export async function signInEmail(email: string, password: string, create: boolean) {
-  const { auth } = init();
-  if (create) await createUserWithEmailAndPassword(auth, email, password);
-  else await signInWithEmailAndPassword(auth, email, password);
+// 개인용이라 새 계정 만들기는 없다. 계정은 Firebase 콘솔에서 관리한다.
+export async function signInEmail(email: string, password: string) {
+  await signInWithEmailAndPassword(init().auth, email, password);
 }
 
 export async function logOut() {
@@ -107,10 +99,9 @@ const AUTH_MESSAGES: Record<string, string> = {
   'auth/wrong-password': '비밀번호가 맞지 않아요.',
   'auth/invalid-email': '이메일 형식이 아니에요.',
   'auth/missing-email': '이메일을 적어주세요.',
-  'auth/email-already-in-use': '이미 있는 계정이에요. 로그인을 눌러주세요.',
   'auth/weak-password': '비밀번호는 6자 이상이어야 해요.',
   'auth/too-many-requests': '시도가 너무 많아요. 잠시 뒤에 다시 해주세요.',
-  'auth/popup-closed-by-user': '로그인 창이 닫혔어요.',
+  'auth/admin-restricted-operation': '새 계정 만들기는 막혀 있어요.',
   'auth/operation-not-allowed': 'Firebase 콘솔에서 이 로그인 방법이 꺼져 있어요.',
   'auth/unauthorized-domain': '이 주소가 Firebase 승인 도메인에 없어요. (docs/setup.md 참고)',
   'auth/network-request-failed': '인터넷 연결을 확인해 주세요.',

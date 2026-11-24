@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { authErrorMessage, sendPasswordReset, signInEmail, signInGoogle } from '../store/firebase';
+import { authErrorMessage, sendPasswordReset, signInEmail } from '../store/firebase';
 
 export function SignIn() {
   const [email, setEmail] = useState('');
@@ -32,11 +32,11 @@ export function SignIn() {
   return (
     <div className="signin">
       <h1>할 일·일정</h1>
-      <p className="hint">폰과 PC에서 같은 목록을 보려면 로그인하세요. 처음 한 번만 하면 돼요.</p>
+      <p className="hint">개인용 앱이에요. 내 계정으로 로그인하세요.</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => signInEmail(email, password, false));
+          void run(() => signInEmail(email, password));
         }}
       >
         <input
@@ -55,26 +55,14 @@ export function SignIn() {
           autoComplete="current-password"
           aria-label="비밀번호"
         />
-        <div className="btn-row">
-          <button type="submit" className="primary" disabled={busy || !email || !password}>
-            로그인
-          </button>
-          <button
-            type="button"
-            disabled={busy || !email || !password}
-            onClick={() => void run(() => signInEmail(email, password, true))}
-          >
-            처음이면 계정 만들기
-          </button>
-        </div>
+        {/* 새 계정 만들기는 Firebase 콘솔에서 막아 두고 화면에서도 뺐다 (개인용). */}
+        <button type="submit" className="primary" disabled={busy || !email || !password}>
+          로그인
+        </button>
         <button type="button" className="ghost small link-btn" disabled={busy} onClick={() => void forgot()}>
           비밀번호를 잊었어요
         </button>
       </form>
-      <div className="divider">또는</div>
-      <button disabled={busy} onClick={() => void run(signInGoogle)}>
-        Google로 로그인
-      </button>
       {notice && <p className="hint">{notice}</p>}
       {error && <p className="error">{error}</p>}
     </div>
