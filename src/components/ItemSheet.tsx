@@ -3,9 +3,11 @@ import { useApp } from '../context';
 import { addDays } from '../lib/date';
 import type { Item, ItemKind } from '../store/types';
 
+const NEW_GROUP = '__new__';
+
 /** 항목을 눌렀을 때 뜨는 편집 창. 닫으면 저장된다. */
 export function ItemSheet({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { store, groups, today } = useApp();
+  const { store, groups, today, ensureGroup } = useApp();
   const [title, setTitle] = useState(item.title);
   const [memo, setMemo] = useState(item.memo);
   const [date, setDate] = useState(item.date ?? '');
@@ -99,7 +101,14 @@ export function ItemSheet({ item, onClose }: { item: Item; onClose: () => void }
 
         <label className="field">
           그룹
-          <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+          <select
+            value={groupId}
+            onChange={(e) => {
+              if (e.target.value !== NEW_GROUP) return setGroupId(e.target.value);
+              const name = prompt('새 그룹 이름 (예: 수행평가)')?.trim().replace(/^#/, '');
+              if (name) setGroupId(ensureGroup(name));
+            }}
+          >
             <option value="">없음</option>
             {groups
               .slice()
@@ -109,6 +118,7 @@ export function ItemSheet({ item, onClose }: { item: Item; onClose: () => void }
                   {g.name}
                 </option>
               ))}
+            <option value={NEW_GROUP}>+ 새 그룹 만들기…</option>
           </select>
         </label>
 

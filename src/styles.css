@@ -483,7 +483,30 @@ h2 {
 /* ---------- 입력창 ---------- */
 
 .quick-add {
+  position: relative;
   margin: 8px 0 4px;
+}
+
+/* 입력 중에만 입력창 아래에 겹쳐 뜨는 창 (미리보기 + 그룹 고르기) */
+.quick-pop {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-pop .chips,
+.quick-pop .group-picker {
+  margin-top: 0;
 }
 
 .quick-add-row {
@@ -1148,8 +1171,53 @@ h2 {
   text-decoration: underline;
 }
 
-.account-extra {
+.password-box {
+  margin-top: 16px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.password-box .sub-title {
   margin-top: 12px;
+}
+
+/* 입력창 아래 그룹 고르기 */
+.group-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-top: 8px;
+  padding-bottom: 2px;
+}
+
+.picker-label {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.group-picker button,
+.picker-new {
+  flex: none;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 14px;
+}
+
+.group-picker button.on,
+.picker-new.on {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
+.group-picker .picker-add {
+  border-style: dashed;
+  color: var(--muted);
 }
 
 .password-form {

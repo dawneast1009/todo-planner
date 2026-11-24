@@ -13,6 +13,8 @@ export interface AppCtx {
   groups: Group[];
   settings: Settings;
   groupName: (id: string | null) => string | null;
+  /** 이름으로 그룹을 찾고, 없으면 만든다. 그룹 id를 돌려준다. */
+  ensureGroup: (name: string) => string;
   addFromText: (text: string, defaults?: AddDefaults) => void;
   toggleDone: (item: Item) => void;
   openItem: (item: Item) => void;
