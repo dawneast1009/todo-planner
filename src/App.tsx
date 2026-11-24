@@ -5,7 +5,8 @@ import { ItemSheet } from './components/ItemSheet';
 import { SignIn } from './components/SignIn';
 import { useSnapshot, useToday } from './hooks';
 import { parseQuickInput } from './lib/parse';
-import { createFirebaseStore, firebaseEnabled, logOut, watchUser } from './store/firebase';
+import { ChangePassword } from './components/ChangePassword';
+import { createFirebaseStore, firebaseEnabled, hasPassword, logOut, watchUser } from './store/firebase';
 import { createLocalStore } from './store/local';
 import { newId, type Item, type Store } from './store/types';
 import { CalendarView } from './views/CalendarView';
@@ -54,16 +55,23 @@ function CloudApp() {
     <Main
       store={store}
       account={
-        <div className="btn-row">
-          <span>{user.email ?? '로그인됨'}</span>
-          <button
-            onClick={() => {
-              if (confirm('로그아웃할까요?')) void logOut();
-            }}
-          >
-            로그아웃
-          </button>
-        </div>
+        <>
+          <div className="btn-row">
+            <span>{user.email ?? '로그인됨'}</span>
+            <button
+              onClick={() => {
+                if (confirm('로그아웃할까요?')) void logOut();
+              }}
+            >
+              로그아웃
+            </button>
+          </div>
+          {hasPassword(user) && (
+            <div className="account-extra">
+              <ChangePassword />
+            </div>
+          )}
+        </>
       }
     />
   );

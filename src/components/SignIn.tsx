@@ -1,37 +1,33 @@
 import { useState } from 'react';
-import { signInEmail, signInGoogle } from '../store/firebase';
-
-const MESSAGES: Record<string, string> = {
-  'auth/invalid-credential': '이메일이나 비밀번호가 맞지 않아요.',
-  'auth/invalid-email': '이메일 형식이 아니에요.',
-  'auth/email-already-in-use': '이미 있는 계정이에요. 로그인을 눌러주세요.',
-  'auth/weak-password': '비밀번호는 6자 이상이어야 해요.',
-  'auth/popup-closed-by-user': '로그인 창이 닫혔어요.',
-  'auth/unauthorized-domain': '이 주소가 Firebase 승인 도메인에 없어요. (docs/setup.md 참고)',
-};
-
-function message(e: unknown): string {
-  const code = (e as { code?: string }).code;
-  return (code && MESSAGES[code]) || (e instanceof Error ? e.message : String(e));
-}
+import { authErrorMessage, sendPasswordReset, signInEmail, signInGoogle } from '../store/firebase';
 
 export function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await fn();
     } catch (e) {
-      setError(message(e));
+      setError(authErrorMessage(e));
     } finally {
       setBusy(false);
     }
   };
+
+  const forgot = () =>
+    run(async () => {
+      if (!email.trim()) throw Object.assign(new Error(), { code: 'auth/missing-email' });
+      await sendPasswordReset(email.trim());
+      // 없는 이메일이어도 Firebase는 성공으로 응답한다 (계정 존재 여부를 숨기려고)
+      setNotice(`${email.trim()}(으)로 비밀번호 재설정 메일을 보냈어요. 메일이 안 보이면 스팸함도 확인해 주세요.`);
+    });
 
   return (
     <div className="signin">
@@ -71,11 +67,15 @@ export function SignIn() {
             처음이면 계정 만들기
           </button>
         </div>
+        <button type="button" className="ghost small link-btn" disabled={busy} onClick={() => void forgot()}>
+          비밀번호를 잊었어요
+        </button>
       </form>
       <div className="divider">또는</div>
       <button disabled={busy} onClick={() => void run(signInGoogle)}>
         Google로 로그인
       </button>
+      {notice && <p className="hint">{notice}</p>}
       {error && <p className="error">{error}</p>}
     </div>
   );

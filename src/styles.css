@@ -903,6 +903,27 @@ h2 {
   gap: 10px;
 }
 
+.link-btn {
+  align-self: flex-start;
+  padding: 4px 0;
+  text-decoration: underline;
+}
+
+.account-extra {
+  margin-top: 12px;
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.password-form .error {
+  margin: 0;
+  font-size: 14px;
+}
+
 .divider {
   text-align: center;
   color: var(--muted);
