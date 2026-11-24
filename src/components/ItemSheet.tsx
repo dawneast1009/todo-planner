@@ -7,7 +7,7 @@ const NEW_GROUP = '__new__';
 
 /** 항목을 눌렀을 때 뜨는 편집 창. 닫으면 저장된다. */
 export function ItemSheet({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { store, groups, today, ensureGroup } = useApp();
+  const { store, groups, today, ensureGroup, deleteItem } = useApp();
   const [title, setTitle] = useState(item.title);
   const [memo, setMemo] = useState(item.memo);
   const [date, setDate] = useState(item.date ?? '');
@@ -33,11 +33,10 @@ export function ItemSheet({ item, onClose }: { item: Item; onClose: () => void }
     onClose();
   };
 
+  // 확인 창 대신 아래에 '되돌리기'가 뜬다
   const remove = () => {
-    if (confirm(`'${item.title}' 삭제할까요?`)) {
-      store.removeItem(item.id);
-      onClose();
-    }
+    deleteItem(item);
+    onClose();
   };
 
   useEffect(() => {

@@ -6,6 +6,8 @@ import { SignIn } from './components/SignIn';
 import { useSnapshot, useToday } from './hooks';
 import { parseQuickInput } from './lib/parse';
 import { ChangePassword } from './components/ChangePassword';
+import { SyncBadge } from './components/SyncBadge';
+import { Toast, type ToastState } from './components/Toast';
 import { createFirebaseStore, firebaseEnabled, hasPassword, logOut, watchUser } from './store/firebase';
 import { createLocalStore } from './store/local';
 import { newId, type Item, type Store } from './store/types';
@@ -65,6 +67,9 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
   const today = useToday();
   const [page, setPage] = useState<'main' | 'settings'>('main');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const showToast = useCallback((text: string, undo?: () => void) => setToast({ id: Date.now(), text, undo }), []);
+  const closeToast = useCallback(() => setToast(null), []);
   const { items, groups, settings } = snap;
 
   const groupName = useCallback((id: string | null) => groups.find((g) => g.id === id)?.name ?? null, [groups]);
@@ -117,13 +122,25 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
     groupName,
     ensureGroup,
     addFromText,
-    toggleDone: (item) =>
+    toggleDone: (item) => {
       store.putItem({
         ...item,
         done: !item.done,
         doneOn: item.done ? null : today,
         updatedAt: Date.now(),
-      }),
+      });
+      if (!item.done) showToast(`'${item.title}' 완료`, () => store.putItem(item));
+    },
+    deleteItem: (item) => {
+      store.removeItem(item.id);
+      showToast(`'${item.title}' 삭제했어요`, () => store.putItem(item));
+    },
+    moveItems: (list, date, label) => {
+      if (list.length === 0) return;
+      const now = Date.now();
+      list.forEach((it) => store.putItem({ ...it, date, updatedAt: now }));
+      showToast(`${list.length}개를 ${label}로 옮겼어요`, () => list.forEach((it) => store.putItem(it)));
+    },
     openItem: (item) => setEditingId(item.id),
     toggleSchoolDday: (key) => {
       const list = settings.importantSchoolEvents;
@@ -139,6 +156,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
   return (
     <AppContext.Provider value={ctx}>
       <div className="app">
+        <SyncBadge sync={snap.sync} />
         <main className={`content${page === 'main' ? ' wide' : ''}`}>
           {!snap.ready ? (
             <p className="empty">불러오는 중…</p>
@@ -149,6 +167,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
           )}
         </main>
         {editing && <ItemSheet key={editing.id} item={editing} onClose={() => setEditingId(null)} />}
+        <Toast toast={toast} onClose={closeToast} />
       </div>
     </AppContext.Provider>
   );

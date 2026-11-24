@@ -6,7 +6,7 @@ import { QuickAdd } from '../components/QuickAdd';
 import { SchoolEvents } from '../components/School';
 import { WeekTimetable } from '../components/WeekTimetable';
 import { useMediaQuery } from '../hooks';
-import { ddayLabel, diffDays, fromISO, relativeLabel, shortLabel, weekdayName } from '../lib/date';
+import { addDays, ddayLabel, diffDays, fromISO, relativeLabel, shortLabel, weekdayName } from '../lib/date';
 import { ddayView, somedayView, todayView, upcomingView } from '../lib/views';
 import { useMonthEvents } from '../school';
 
@@ -19,7 +19,7 @@ function Count({ n }: { n: number }) {
  * 폰: 한 줄로 쭉. 넓은 화면: 왼쪽 할 일 목록, 오른쪽 시간표와 달력.
  */
 export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { items, today, settings, groups, openItem } = useApp();
+  const { items, today, settings, groups, openItem, moveItems } = useApp();
   const wide = useMediaQuery('(min-width: 1000px)');
   const [filterId, setFilterId] = useState<string | null>(null);
   const filter = groups.find((g) => g.id === filterId) ?? null;
@@ -100,7 +100,15 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
           <SchoolEvents events={todayEvents} />
           {t.carried.length > 0 && (
             <>
-              <h3 className="sub-title warn">밀린 할 일</h3>
+              <div className="sub-head">
+                <h3 className="sub-title warn">밀린 할 일 {t.carried.length}</h3>
+                <button className="mini-btn" onClick={() => moveItems(t.carried, today, '오늘')}>
+                  모두 오늘로
+                </button>
+                <button className="mini-btn" onClick={() => moveItems(t.carried, addDays(today, 1), '내일')}>
+                  모두 내일로
+                </button>
+              </div>
               <ItemList items={t.carried} carried hideGroup={!!filter} />
               {t.today.length > 0 && <h3 className="sub-title">오늘 할 일</h3>}
             </>
