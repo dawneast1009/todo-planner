@@ -158,7 +158,39 @@ const GROUP_RE = new RegExp(`${B}#(\\S+)`);
 type RepeatRuleDef = { re: RegExp; resolve: (m: RegExpExecArray, today: string) => RepeatRule | null };
 
 // 반복 표현. 요일 날짜 규칙보다 먼저 봐야 '매주 월요일'의 '월요일'을 날짜로 잡지 않는다.
+/** 매년 규칙이 실제로 있는 날짜인지 (양력은 윤년 기준으로 2월 29일까지 허용) */
+function yearly(month: number, day: number, lunar: boolean): RepeatRule | null {
+  if (lunar) return month >= 1 && month <= 12 && day >= 1 && day <= 30 ? { freq: 'yearly', month, day, lunar: true } : null;
+  return makeDate(2024, month, day) ? { freq: 'yearly', month, day } : null;
+}
+
+const YEARLY = '(?:매년|해마다)';
+
 const REPEAT_RULES: RepeatRuleDef[] = [
+  {
+    // 매년 3월 15일, 매년 음력 3월 15일
+    re: new RegExp(`${B}${YEARLY}\\s*(음력\\s*)?(\\d{1,2})월\\s*(\\d{1,2})일${E}`),
+    resolve: (m) => yearly(+m[2], +m[3], !!m[1]),
+  },
+  {
+    // 매년 3/15, 매년 음력 3/15
+    re: new RegExp(`${B}${YEARLY}\\s*(음력\\s*)?(\\d{1,2})/(\\d{1,2})${E}`),
+    resolve: (m) => yearly(+m[2], +m[3], !!m[1]),
+  },
+  {
+    // 음력 날짜는 생신·제사처럼 해마다 챙기는 날이라 '음력'만 적어도 매년으로 본다
+    re: new RegExp(`${B}음력\\s*(\\d{1,2})월\\s*(\\d{1,2})일(?:\\s*${YEARLY})?${E}`),
+    resolve: (m) => yearly(+m[1], +m[2], true),
+  },
+  {
+    re: new RegExp(`${B}음력\\s*(\\d{1,2})/(\\d{1,2})(?:\\s*${YEARLY})?${E}`),
+    resolve: (m) => yearly(+m[1], +m[2], true),
+  },
+  {
+    // '매년'만 있으면 같이 적은 날짜(없으면 오늘)의 월·일로 — 아래 parseQuickInput에서 채운다
+    re: new RegExp(`${B}${YEARLY}${E}`),
+    resolve: () => ({ freq: 'yearly', month: 0, day: 0 }),
+  },
   { re: new RegExp(`${B}(?:매일|날마다)${E}`), resolve: () => ({ freq: 'daily' }) },
   {
     re: new RegExp(`${B}평일(?:마다)?${E}`),
@@ -204,12 +236,14 @@ export function parseQuickInput(input: string, today: string): Parsed {
   for (const rule of REPEAT_RULES) {
     const m = rule.re.exec(text);
     if (!m) continue;
+    // 반복 표현이 보이면 거기서 멈춘다. '매년 2월 30일'처럼 없는 날짜면 반복 없이 글자 그대로 둔다
+    // (뒤의 '매년'만 보는 규칙으로 넘어가 엉뚱한 날짜로 반복되지 않게).
     const resolved = rule.resolve(m, today);
     if (resolved) {
       repeat = resolved;
       text = cut(text, m);
-      break;
     }
+    break;
   }
 
   for (const rule of DATE_RULES) {
@@ -221,6 +255,13 @@ export function parseQuickInput(input: string, today: string): Parsed {
       text = cut(text, m);
       break;
     }
+  }
+
+  // '매년'만 적었으면 같이 적은 날짜(없으면 오늘)의 월·일로 매년
+  if (repeat?.freq === 'yearly' && repeat.month === 0) {
+    const base = fromISO(date ?? today);
+    repeat = { freq: 'yearly', month: base.getMonth() + 1, day: base.getDate() };
+    date = null;
   }
 
   // 반복이면 시작일(따로 적었으면 그 날, 아니면 오늘) 이후 첫 반복 날짜가 날짜가 된다

@@ -152,3 +152,30 @@ describe('반복', () => {
     expect(p('매일유업 우유').repeat).toBeNull();
   });
 });
+
+describe('매년·음력', () => {
+  it('매년 양력', () => {
+    expect(p('매년 12월 25일 크리스마스')).toMatchObject({
+      repeat: { freq: 'yearly', month: 12, day: 25 },
+      date: '2026-12-25',
+      title: '크리스마스',
+    });
+    expect(p('매년 3/2 개학기념').date).toBe('2027-03-02');
+    expect(p('12/25 매년 크리스마스')).toMatchObject({ repeat: { freq: 'yearly', month: 12, day: 25 }, date: '2026-12-25' });
+    expect(p('매년 결혼기념일').repeat).toEqual({ freq: 'yearly', month: 11, day: 24 });
+  });
+
+  it('음력은 매년으로 보고, 올해(또는 내년) 양력 날짜를 찾는다', () => {
+    // 2026년 음력 8월 15일(추석) = 양력 9월 25일은 이미 지났으니 2027년 추석
+    const chuseok = p('음력 8월 15일 추석');
+    expect(chuseok.repeat).toEqual({ freq: 'yearly', month: 8, day: 15, lunar: true });
+    expect(chuseok.date).toBe('2027-09-15');
+    expect(p('매년 음력 1/1 설날')).toMatchObject({ date: '2027-02-07', title: '설날' });
+    expect(p('음력 3/15 매년 엄마 생신').title).toBe('엄마 생신');
+  });
+
+  it('없는 날짜는 반복으로 보지 않는다', () => {
+    expect(p('매년 2월 30일 이상한 날').repeat?.freq).not.toBe('yearly');
+    expect(p('음력 13월 1일 이상').repeat).toBeNull();
+  });
+});
