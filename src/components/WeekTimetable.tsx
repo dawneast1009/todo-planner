@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context';
 import { addDays, fromISO, mondayOf } from '../lib/date';
-import { useTimetable } from '../school';
+import { useTimetable, useWeekMeals } from '../school';
 import { PartialHint } from './School';
 
 const DAYS = ['월', '화', '수', '목', '금'];
@@ -89,9 +89,58 @@ export function WeekTimetable({ onOpenSettings }: { onOpenSettings: () => void }
         <p className="hint">이 주에는 시간표가 없어요. (방학이거나 아직 나이스에 안 올라왔을 수 있어요)</p>
       )}
       <PartialHint partial={tt.data?.partial} what="시간표" />
+      <WeekMeals key={monday} dates={dates} />
       <p className="hint tt-school">
         {school.schoolName} {school.grade}학년 {school.className}반
       </p>
     </section>
+  );
+}
+
+/** 시간표 아래 급식. 요일을 누르면 그 날 메뉴가 나온다 (처음엔 오늘). */
+function WeekMeals({ dates }: { dates: string[] }) {
+  const { today, settings } = useApp();
+  const [selected, setSelected] = useState(dates.includes(today) ? today : dates[0]);
+  const meals = useWeekMeals(settings, dates[0]);
+  const dayMeals = meals.data?.days[selected] ?? [];
+
+  return (
+    <div className="meals">
+      <div className="meals-head">
+        <h3 className="sub-title">급식</h3>
+        <div className="meal-days" role="tablist" aria-label="급식 요일">
+          {dates.map((d, i) => (
+            <button
+              key={d}
+              role="tab"
+              aria-selected={d === selected}
+              className={`${d === selected ? 'on' : ''}${d === today ? ' is-today' : ''}`}
+              onClick={() => setSelected(d)}
+            >
+              {DAYS[i]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {dayMeals.length > 0 ? (
+        <div className="meal-list">
+          {dayMeals.map((m) => (
+            <div key={m.kind} className="meal">
+              <div className="meal-kind">
+                {m.kind}
+                {m.calories && <span className="muted"> · {m.calories}</span>}
+              </div>
+              <p className="meal-dishes">{m.dishes.join(' · ')}</p>
+            </div>
+          ))}
+        </div>
+      ) : meals.loading ? (
+        <p className="hint">급식 불러오는 중…</p>
+      ) : meals.error ? (
+        <p className="hint">급식을 못 불러왔어요 ({meals.error})</p>
+      ) : (
+        <p className="hint">이 날은 급식 정보가 없어요.</p>
+      )}
+    </div>
   );
 }

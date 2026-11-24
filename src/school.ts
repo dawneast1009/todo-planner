@@ -1,6 +1,13 @@
 import { useCachedRemote } from './hooks';
 import { addDays, mondayOf } from './lib/date';
-import { fetchSchoolEvents, fetchTimetable, type SchoolEventsResult, type TimetableResult } from './lib/neis';
+import {
+  fetchMeals,
+  fetchSchoolEvents,
+  fetchTimetable,
+  type MealsResult,
+  type SchoolEventsResult,
+  type TimetableResult,
+} from './lib/neis';
 import type { SchoolConfig, Settings } from './store/types';
 
 const HOUR = 3_600_000;
@@ -22,6 +29,25 @@ export function useTimetable(settings: Settings, date: string) {
     async () => {
       if (key) return fetchTimetable(s!, monday, addDays(monday, 4), key);
       const days = await Promise.all([0, 1, 2, 3, 4].map((n) => fetchTimetable(s!, addDays(monday, n), addDays(monday, n), '')));
+      return {
+        days: Object.assign({}, ...days.map((d) => d.days)),
+        partial: days.some((d) => d.partial),
+      };
+    },
+    6 * HOUR,
+  );
+}
+
+/** 그 날짜가 속한 주(월~금) 급식. 키가 없으면 하루씩 받는다 (하루에 많아야 3끼라 5건 제한에 걸리지 않는다). */
+export function useWeekMeals(settings: Settings, date: string) {
+  const s = settings.school;
+  const key = settings.neisKey;
+  const monday = mondayOf(date);
+  return useCachedRemote<MealsResult>(
+    s ? `meal1:${key ? 'k' : 'nk'}:${s.officeCode}-${s.schoolCode}:${monday}` : null,
+    async () => {
+      if (key) return fetchMeals(s!, monday, addDays(monday, 4), key);
+      const days = await Promise.all([0, 1, 2, 3, 4].map((n) => fetchMeals(s!, addDays(monday, n), addDays(monday, n), '')));
       return {
         days: Object.assign({}, ...days.map((d) => d.days)),
         partial: days.some((d) => d.partial),
