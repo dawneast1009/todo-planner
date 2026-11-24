@@ -1,6 +1,12 @@
 /** 할 일은 체크하고, 못 하면 다음 날로 넘어간다. 일정(약속)은 그 날에만 보인다. */
 export type ItemKind = 'todo' | 'event';
 
+/**
+ * 반복 규칙. 시작 날짜는 Item.date.
+ * weekly.days: 0=일 … 6=토, monthly.day: 1~31 (그 달에 없으면 그 달은 건너뜀)
+ */
+export type RepeatRule = { freq: 'daily' } | { freq: 'weekly'; days: number[] } | { freq: 'monthly'; day: number };
+
 export interface Item {
   id: string;
   title: string;
@@ -18,6 +24,14 @@ export interface Item {
   groupId: string | null;
   createdAt: number;
   updatedAt: number;
+  /** 반복 항목이면 규칙이 있다. 예전 데이터에는 이 필드가 없을 수 있다. */
+  repeat?: RepeatRule | null;
+  /** 반복 항목에서 체크한 날짜들 */
+  doneDates?: string[];
+  /** 반복 항목에서 '이 날만 삭제'한 날짜들 */
+  skipDates?: string[];
+  /** 화면용으로 펼친 반복 항목 하나에만 있다 (저장되지 않음). 원래 반복 항목의 id. */
+  seriesId?: string;
 }
 
 export interface Group {
