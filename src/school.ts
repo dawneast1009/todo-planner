@@ -1,23 +1,32 @@
 import { useCachedRemote } from './hooks';
 import { addDays, mondayOf } from './lib/date';
 import { fetchSchoolEvents, fetchTimetable, type SchoolEventsResult, type TimetableResult } from './lib/neis';
-import type { Settings } from './store/types';
+import type { SchoolConfig, Settings } from './store/types';
 
 const HOUR = 3_600_000;
 
+function schoolKey(s: SchoolConfig): string {
+  return `${s.officeCode}-${s.schoolCode}-${s.grade}-${s.className}`;
+}
+
 /**
- * 시간표. 키가 있으면 그 주(월~금)를 한 번에 받아 캐시하고,
- * 키가 없으면 5건 제한 때문에 그 날 하루만 받는다.
+ * 그 날짜가 속한 주(월~금) 시간표.
+ * 키가 있으면 한 번에 받고, 키가 없으면 5건 제한 때문에 하루씩 따로 받아 합친다.
  */
 export function useTimetable(settings: Settings, date: string) {
   const s = settings.school;
   const key = settings.neisKey;
-  const from = key ? mondayOf(date) : date;
-  const to = key ? addDays(from, 4) : date;
-  const mode = key ? 'k' : 'nk';
+  const monday = mondayOf(date);
   return useCachedRemote<TimetableResult>(
-    s ? `tt2:${mode}:${s.officeCode}-${s.schoolCode}-${s.grade}-${s.className}:${from}` : null,
-    () => fetchTimetable(s!, from, to, key),
+    s ? `tt3:${key ? 'k' : 'nk'}:${schoolKey(s)}:${monday}` : null,
+    async () => {
+      if (key) return fetchTimetable(s!, monday, addDays(monday, 4), key);
+      const days = await Promise.all([0, 1, 2, 3, 4].map((n) => fetchTimetable(s!, addDays(monday, n), addDays(monday, n), '')));
+      return {
+        days: Object.assign({}, ...days.map((d) => d.days)),
+        partial: days.some((d) => d.partial),
+      };
+    },
     6 * HOUR,
   );
 }
