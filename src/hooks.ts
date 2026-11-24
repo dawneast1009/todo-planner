@@ -32,7 +32,7 @@ export function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-const EMPTY: Snapshot = { ready: false, items: [], groups: [], settings: DEFAULT_SETTINGS };
+const EMPTY: Snapshot = { ready: false, sync: 'ok', items: [], groups: [], settings: DEFAULT_SETTINGS };
 
 export function useSnapshot(store: Store | null): Snapshot {
   const [snap, setSnap] = useState<Snapshot>(EMPTY);

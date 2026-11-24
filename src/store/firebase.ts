@@ -25,6 +25,7 @@ import {
   setDoc,
   writeBatch,
   type Firestore,
+  type SnapshotListenOptions,
 } from 'firebase/firestore';
 import { DEFAULT_SETTINGS, type Group, type Item, type Settings, type Snapshot, type Store } from './types';
 
@@ -137,31 +138,51 @@ export function createFirebaseStore(uid: string): Store {
   const listeners = new Set<(s: Snapshot) => void>();
   let unsubs: Array<() => void> = [];
 
+  // 아직 서버에 안 올라간 변경이 있는지 (컬렉션별)
+  const pending = { items: false, groups: false, settings: false };
+  let online = navigator.onLine;
+
   const snapshot = (): Snapshot => ({
     ready: loaded.items && loaded.groups && loaded.settings,
+    sync: !online ? 'offline' : pending.items || pending.groups || pending.settings ? 'pending' : 'ok',
     items,
     groups,
     settings,
   });
   const emit = () => listeners.forEach((cb) => cb(snapshot()));
+  const onOnline = () => {
+    online = navigator.onLine;
+    emit();
+  };
 
+  // includeMetadataChanges: 서버에 올라가서 pending이 풀릴 때도 알림을 받는다
+  const meta: SnapshotListenOptions = { includeMetadataChanges: true };
   const start = () => {
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOnline);
     unsubs = [
-      onSnapshot(itemsCol, (snap) => {
+      onSnapshot(itemsCol, meta, (snap) => {
         items = snap.docs.map((d) => d.data() as Item);
         loaded.items = true;
+        pending.items = snap.metadata.hasPendingWrites;
         emit();
       }),
-      onSnapshot(groupsCol, (snap) => {
+      onSnapshot(groupsCol, meta, (snap) => {
         groups = snap.docs.map((d) => d.data() as Group);
         loaded.groups = true;
+        pending.groups = snap.metadata.hasPendingWrites;
         emit();
       }),
-      onSnapshot(settingsDoc, (snap) => {
+      onSnapshot(settingsDoc, meta, (snap) => {
         settings = { ...DEFAULT_SETTINGS, ...(snap.data() as Partial<Settings> | undefined) };
         loaded.settings = true;
+        pending.settings = snap.metadata.hasPendingWrites;
         emit();
       }),
+      () => {
+        window.removeEventListener('online', onOnline);
+        window.removeEventListener('offline', onOnline);
+      },
     ];
   };
 

@@ -30,7 +30,7 @@ export function createLocalStore(): Store {
   let data = load();
   const listeners = new Set<(s: Snapshot) => void>();
 
-  const snapshot = (): Snapshot => ({ ready: true, ...data });
+  const snapshot = (): Snapshot => ({ ready: true, sync: 'ok', ...data });
   const emit = () => listeners.forEach((cb) => cb(snapshot()));
 
   const commit = (next: Data) => {

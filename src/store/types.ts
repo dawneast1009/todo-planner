@@ -48,8 +48,12 @@ export const DEFAULT_SETTINGS: Settings = {
   importantSchoolEvents: [],
 };
 
+/** ok: 서버와 맞음, pending: 올리는 중, offline: 인터넷 없음(기기에만 저장됨) */
+export type SyncState = 'ok' | 'pending' | 'offline';
+
 export interface Snapshot {
   ready: boolean;
+  sync: SyncState;
   items: Item[];
   groups: Group[];
   settings: Settings;
