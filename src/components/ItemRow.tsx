@@ -4,9 +4,9 @@ import type { Item } from '../store/types';
 
 interface Props {
   item: Item;
-  /** 날짜도 같이 보여줄지 (그룹 화면, 이월된 항목 등) */
+  /** 날짜도 같이 보여줄지 */
   showDate?: boolean;
-  /** 날짜 대신 '11/22부터' 처럼 보여줄 때 */
+  /** 밀린 할 일: '11/22 (일)부터' 처럼 보여준다 */
   carried?: boolean;
   hideGroup?: boolean;
 }
@@ -15,6 +15,8 @@ export function ItemRow({ item, showDate, carried, hideGroup }: Props) {
   const { today, toggleDone, openItem, groupName } = useApp();
   const group = hideGroup ? null : groupName(item.groupId);
   const isEvent = item.kind === 'event';
+  const memoLine = item.memo.trim().split('\n')[0];
+  const hasMeta = (carried && item.date) || (showDate && item.date) || group;
 
   return (
     <li className={`row${item.done ? ' done' : ''}${isEvent ? ' event' : ''}`}>
@@ -27,17 +29,25 @@ export function ItemRow({ item, showDate, carried, hideGroup }: Props) {
         {item.done ? '✓' : ''}
       </button>
       <button className="row-main" onClick={() => openItem(item)}>
-        <span className="row-title">
-          {item.important && <span className="star" aria-label="중요">★ </span>}
-          {item.title}
+        <span className="row-text">
+          <span className="row-title">
+            {item.important && (
+              <span className="star" aria-label="중요">
+                ★{' '}
+              </span>
+            )}
+            {item.title}
+          </span>
+          {memoLine && <span className="row-memo">{memoLine}</span>}
+          {hasMeta && (
+            <span className="row-meta">
+              {carried && item.date && <span className="meta-carried">{relativeLabel(item.date, today)}부터</span>}
+              {showDate && !carried && item.date && <span>{relativeLabel(item.date, today)}</span>}
+              {group && <span className="meta-group">#{group}</span>}
+            </span>
+          )}
         </span>
-        <span className="row-meta">
-          {carried && item.date && <span className="meta-carried">{relativeLabel(item.date, today)}부터</span>}
-          {showDate && !carried && item.date && <span>{relativeLabel(item.date, today)}</span>}
-          {item.time && <span className="meta-time">{timeLabel(item.time)}</span>}
-          {group && <span className="meta-group">#{group}</span>}
-          {item.memo && <span className="meta-memo" aria-label="메모 있음">메모</span>}
-        </span>
+        {item.time && <span className="row-time">{timeLabel(item.time)}</span>}
       </button>
     </li>
   );
