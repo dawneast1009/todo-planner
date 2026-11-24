@@ -202,5 +202,22 @@ export function createFirebaseStore(uid: string): Store {
     putSettings(next) {
       setDoc(settingsDoc, clean(next)).catch(report);
     },
+    async replaceAll(nextItems, nextGroups) {
+      // 한 번에 쓸 수 있는 개수 제한(500)이 있어서 나눠서 커밋한다
+      type Op = (b: ReturnType<typeof writeBatch>) => void;
+      const keepItems = new Set(nextItems.map((i) => i.id));
+      const keepGroups = new Set(nextGroups.map((g) => g.id));
+      const ops: Op[] = [
+        ...items.filter((i) => !keepItems.has(i.id)).map((i): Op => (b) => b.delete(doc(itemsCol, i.id))),
+        ...groups.filter((g) => !keepGroups.has(g.id)).map((g): Op => (b) => b.delete(doc(groupsCol, g.id))),
+        ...nextGroups.map((g): Op => (b) => b.set(doc(groupsCol, g.id), clean(g))),
+        ...nextItems.map((i): Op => (b) => b.set(doc(itemsCol, i.id), clean(i))),
+      ];
+      for (let i = 0; i < ops.length; i += 400) {
+        const batch = writeBatch(db);
+        ops.slice(i, i + 400).forEach((op) => op(batch));
+        await batch.commit();
+      }
+    },
   };
 }

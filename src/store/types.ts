@@ -65,6 +65,8 @@ export interface Store {
   /** 그룹을 지우면 그 그룹에 있던 항목은 그룹 없음으로 바뀐다 */
   removeGroup(id: string): void;
   putSettings(settings: Settings): void;
+  /** 백업 복원: 할 일과 그룹을 통째로 바꾼다 (설정은 그대로) */
+  replaceAll(items: Item[], groups: Group[]): Promise<void>;
 }
 
 export function newId(): string {

@@ -79,5 +79,8 @@ export function createLocalStore(): Store {
     putSettings(settings) {
       commit({ ...data, settings });
     },
+    async replaceAll(items, groups) {
+      commit({ ...data, items, groups });
+    },
   };
 }
