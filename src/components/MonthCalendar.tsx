@@ -101,12 +101,15 @@ export function MonthCalendar({ items, groupId, showSchool }: Props) {
               aria-label={`${shortLabel(iso)} ${labels.length}건`}
             >
               <span className="cal-num">{Number(iso.slice(8))}</span>
-              {labels.slice(0, 3).map((l) => (
-                <span key={l.key} className={`cal-lbl ${l.cls}`}>
-                  {l.text}
-                </span>
-              ))}
-              {labels.length > 3 && <span className="cal-more">+{labels.length - 3}</span>}
+              {/* 넓은 화면은 제목, 폰은 점으로 보인다 */}
+              <span className="cal-marks" aria-hidden>
+                {labels.slice(0, 3).map((l) => (
+                  <span key={l.key} className={`cal-lbl ${l.cls}`}>
+                    {l.text}
+                  </span>
+                ))}
+                {labels.length > 3 && <span className="cal-more">+{labels.length - 3}</span>}
+              </span>
             </button>
           );
         })}
@@ -115,11 +118,19 @@ export function MonthCalendar({ items, groupId, showSchool }: Props) {
       {showSchool && <PartialHint partial={events.data?.partial} what="이 달 학사일정" />}
 
       <div className="day-panel">
-        <h3>{shortLabel(selected)}</h3>
-        <QuickAdd date={selected} groupId={groupId} placeholder={`${shortLabel(selected)}에 추가`} />
-        <SchoolEvents events={dayEvents} />
-        <ItemList items={dayItems} hideGroup={!!groupId} />
-        {dayItems.length === 0 && dayEvents.length === 0 && <p className="hint">이 날은 비어 있어요.</p>}
+        {selected === today ? (
+          <p className="hint">날짜를 누르면 그 날 할 일과 학교 일정이 여기에 나와요.</p>
+        ) : (
+          <>
+            <h3 className="date-title">
+              <span>{shortLabel(selected)}</span>
+            </h3>
+            <QuickAdd date={selected} groupId={groupId} placeholder={`${shortLabel(selected)}에 추가`} />
+            <SchoolEvents events={dayEvents} />
+            <ItemList items={dayItems} hideGroup={!!groupId} />
+            {dayItems.length === 0 && dayEvents.length === 0 && <p className="empty-line">이 날은 비어 있어요.</p>}
+          </>
+        )}
       </div>
     </section>
   );
