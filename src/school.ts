@@ -57,15 +57,53 @@ export function useWeekMeals(settings: Settings, date: string) {
   );
 }
 
+/**
+ * 키 없이 학사일정 받기: 나이스가 한 번에 5건만 주니 기간을 쪼갠다.
+ * 한 달을 주 단위로 받고, 그 주도 5건이 넘으면 하루씩 다시 받는다.
+ */
+export async function fetchEventsKeyless(
+  school: SchoolConfig,
+  month: string,
+  fetchFn?: typeof fetch,
+): Promise<SchoolEventsResult> {
+  const weeks: Array<[string, string]> = [
+    [`${month}-01`, `${month}-07`],
+    [`${month}-08`, `${month}-14`],
+    [`${month}-15`, `${month}-21`],
+    [`${month}-22`, `${month}-28`],
+    [`${month}-29`, `${month}-31`], // 나이스는 없는 날짜도 범위 끝으로 받아준다
+  ];
+  const results = await Promise.all(
+    weeks.map(async ([from, to]) => {
+      const r = await fetchSchoolEvents(school, from, to, '', fetchFn);
+      if (!r.partial) return r;
+      const days = Array.from({ length: Number(to.slice(8)) - Number(from.slice(8)) + 1 }, (_, i) =>
+        addDays(from, i),
+      ).filter((d) => d.startsWith(month));
+      const perDay = await Promise.all(days.map((d) => fetchSchoolEvents(school, d, d, '', fetchFn)));
+      return { events: perDay.flatMap((x) => x.events), partial: perDay.some((x) => x.partial) };
+    }),
+  );
+  const seen = new Set<string>();
+  const events = results
+    .flatMap((r) => r.events)
+    .filter((e) => {
+      const k = `${e.date}|${e.name}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return { events, partial: results.some((r) => r.partial) };
+}
+
 /** 'YYYY-MM' 한 달 학사일정 */
 export function useMonthEvents(settings: Settings, month: string) {
   const s = settings.school;
   const key = settings.neisKey;
-  const from = `${month}-01`;
-  const to = `${month}-31`; // 나이스는 없는 날짜도 범위 끝으로 받아준다
   return useCachedRemote<SchoolEventsResult>(
-    s ? `ev2:${key ? 'k' : 'nk'}:${s.officeCode}-${s.schoolCode}-${s.grade}:${month}` : null,
-    () => fetchSchoolEvents(s!, from, to, key),
+    s ? `ev3:${key ? 'k' : 'nk'}:${s.officeCode}-${s.schoolCode}-${s.grade}:${month}` : null,
+    () => (key ? fetchSchoolEvents(s!, `${month}-01`, `${month}-31`, key) : fetchEventsKeyless(s!, month)),
     12 * HOUR,
   );
 }

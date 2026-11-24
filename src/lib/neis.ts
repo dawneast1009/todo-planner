@@ -167,7 +167,7 @@ const GRADE_FLAGS = [
 
 /**
  * 내 학년 행사만 남긴다. 어느 학년에도 Y가 없으면 전체 행사로 본다.
- * 매주 있는 토요휴업일은 달력만 어지럽혀서 뺀다.
+ * 매주 있는 토요휴업일과 선생님용 행사(교직원 회의 등)는 학생 달력만 어지럽혀서 뺀다.
  */
 export function rowsToSchoolEvents(rows: Row[], grade: string): SchoolEvent[] {
   const myFlag = GRADE_FLAGS[Number(grade) - 1];
@@ -175,7 +175,7 @@ export function rowsToSchoolEvents(rows: Row[], grade: string): SchoolEvent[] {
   const out: SchoolEvent[] = [];
   for (const r of rows) {
     const name = (r.EVENT_NM ?? '').trim();
-    if (!r.AA_YMD || !name || name === '토요휴업일') continue;
+    if (!r.AA_YMD || !name || name === '토요휴업일' || name.includes('교직원')) continue;
     const anyGrade = GRADE_FLAGS.some((f) => r[f] === 'Y');
     if (anyGrade && myFlag && r[myFlag] !== 'Y') continue;
     const date = fromCompact(r.AA_YMD);

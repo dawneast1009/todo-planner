@@ -52,12 +52,13 @@ describe('rowsToSchoolEvents', () => {
     SIX_GRADE_EVENT_YN: '*',
     SBTR_DD_SC_NM: '해당없음',
   };
-  it('내 학년 행사와 전체 행사만, 토요휴업일은 뺀다', () => {
+  it('내 학년 행사와 전체 행사만, 토요휴업일·교직원 행사는 뺀다', () => {
     const rows = [
       { ...base, AA_YMD: '20261201', EVENT_NM: '3학년 행사', THREE_GRADE_EVENT_YN: 'Y' },
       { ...base, AA_YMD: '20261202', EVENT_NM: '1학년 행사', ONE_GRADE_EVENT_YN: 'Y' },
       { ...base, AA_YMD: '20261203', EVENT_NM: '개교기념일', SBTR_DD_SC_NM: '휴업일' },
       { ...base, AA_YMD: '20261205', EVENT_NM: '토요휴업일', SBTR_DD_SC_NM: '휴업일' },
+      { ...base, AA_YMD: '20261207', EVENT_NM: '교직원 회의' },
     ];
     expect(rowsToSchoolEvents(rows, '1')).toEqual([
       { date: '2026-12-02', name: '1학년 행사', holiday: false },
