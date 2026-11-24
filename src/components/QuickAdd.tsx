@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useApp, type AddDefaults } from '../context';
 import { relativeLabel, timeLabel } from '../lib/date';
 import { parseQuickInput } from '../lib/parse';
+import { repeatLabel } from '../lib/repeat';
 
 interface Props extends AddDefaults {
   placeholder?: string;
@@ -79,8 +80,9 @@ export function QuickAdd({ date: defaultDate, groupId: defaultGroupId = null, pl
         <div className="quick-pop" onPointerDown={(e) => e.preventDefault()}>
           {parsed && (
             <div className="chips" aria-live="polite">
+              {parsed.repeat && <span className="chip chip-date">↻ {repeatLabel(parsed.repeat)}</span>}
               <span className={`chip ${date ? 'chip-date' : 'chip-someday'}`}>
-                {date ? relativeLabel(date, today) : '언젠가'}
+                {date ? `${parsed.repeat ? '처음 ' : ''}${relativeLabel(date, today)}` : '언젠가'}
               </span>
               {parsed.time && <span className="chip chip-time">{timeLabel(parsed.time)}</span>}
               <span className="chip-title">{parsed.title}</span>

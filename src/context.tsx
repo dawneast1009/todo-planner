@@ -19,6 +19,8 @@ export interface AppCtx {
   toggleDone: (item: Item) => void;
   /** 삭제 (아래에 '되돌리기'가 뜬다) */
   deleteItem: (item: Item) => void;
+  /** 반복 항목에서 그 날 하루만 뺀다 */
+  skipOccurrence: (series: Item, date: string) => void;
   /** 여러 항목의 날짜를 한 번에 바꾼다 (미루기). '되돌리기'가 뜬다. */
   moveItems: (items: Item[], date: string, label: string) => void;
   openItem: (item: Item) => void;

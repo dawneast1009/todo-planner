@@ -1,5 +1,6 @@
 import { useApp } from '../context';
 import { relativeLabel, timeLabel } from '../lib/date';
+import { repeatLabel } from '../lib/repeat';
 import type { Item } from '../store/types';
 
 interface Props {
@@ -16,7 +17,7 @@ export function ItemRow({ item, showDate, carried, hideGroup }: Props) {
   const group = hideGroup ? null : groupName(item.groupId);
   const isEvent = item.kind === 'event';
   const memoLine = item.memo.trim().split('\n')[0];
-  const hasMeta = (carried && item.date) || (showDate && item.date) || group;
+  const hasMeta = (carried && item.date) || (showDate && item.date) || group || item.repeat;
 
   return (
     <li className={`row${item.done ? ' done' : ''}${isEvent ? ' event' : ''}`}>
@@ -43,6 +44,7 @@ export function ItemRow({ item, showDate, carried, hideGroup }: Props) {
             <span className="row-meta">
               {carried && item.date && <span className="meta-carried">{relativeLabel(item.date, today)}부터</span>}
               {showDate && !carried && item.date && <span>{relativeLabel(item.date, today)}</span>}
+              {item.repeat && <span className="meta-repeat">↻ {repeatLabel(item.repeat)}</span>}
               {group && <span className="meta-group">#{group}</span>}
             </span>
           )}

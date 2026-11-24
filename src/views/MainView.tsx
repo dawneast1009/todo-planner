@@ -7,6 +7,7 @@ import { SchoolEvents } from '../components/School';
 import { WeekTimetable } from '../components/WeekTimetable';
 import { useMediaQuery } from '../hooks';
 import { addDays, ddayLabel, diffDays, fromISO, relativeLabel, shortLabel, weekdayName } from '../lib/date';
+import { expandItems, nextOccurrences } from '../lib/repeat';
 import { ddayView, somedayView, todayView, upcomingView } from '../lib/views';
 import { useMonthEvents } from '../school';
 
@@ -25,10 +26,21 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
   const filter = groups.find((g) => g.id === filterId) ?? null;
   const visible = filter ? items.filter((i) => i.groupId === filter.id) : items;
 
-  const t = todayView(visible, today);
-  const upcoming = upcomingView(visible, today);
-  const someday = somedayView(visible, today);
-  const ddays = ddayView(visible, filter ? [] : settings.importantSchoolEvents, today);
+  // 반복 항목은 화면마다 필요한 날짜만 펼친다: 오늘은 오늘 것, 예정은 다음 한 번만
+  const plain = visible.filter((i) => !i.repeat);
+  const series = visible.filter((i) => i.repeat);
+  const t = todayView([...plain, ...expandItems(series, today, today)], today);
+  // 매일 반복은 예정에 늘 '내일'로 떠서 시끄러우니 뺀다 (오늘과 달력에는 나온다)
+  const upcoming = upcomingView(
+    [...plain, ...nextOccurrences(series.filter((s) => s.repeat?.freq !== 'daily'), addDays(today, 1))],
+    today,
+  );
+  const someday = somedayView(plain, today);
+  const ddays = ddayView(
+    [...plain, ...nextOccurrences(series, today)],
+    filter ? [] : settings.importantSchoolEvents,
+    today,
+  );
   const upcomingCount = upcoming.reduce((n, b) => n + b.items.filter((i) => !i.done).length, 0);
 
   const events = useMonthEvents(settings, today.slice(0, 7));

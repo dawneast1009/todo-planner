@@ -4,6 +4,7 @@ import { AppContext, type AddDefaults, type AppCtx } from './context';
 import { ItemSheet } from './components/ItemSheet';
 import { SignIn } from './components/SignIn';
 import { useSnapshot, useToday } from './hooks';
+import { shortLabel } from './lib/date';
 import { parseQuickInput } from './lib/parse';
 import { ChangePassword } from './components/ChangePassword';
 import { SyncBadge } from './components/SyncBadge';
@@ -66,7 +67,8 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
   const snap = useSnapshot(store);
   const today = useToday();
   const [page, setPage] = useState<'main' | 'settings'>('main');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // 편집 중인 항목. 반복 항목의 하루치를 눌렀으면 occurrence에 그 날짜가 들어간다.
+  const [editingRef, setEditing] = useState<{ id: string; occurrence: string | null } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const showToast = useCallback((text: string, undo?: () => void) => setToast({ id: Date.now(), text, undo }), []);
   const closeToast = useCallback(() => setToast(null), []);
@@ -107,6 +109,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
         groupId,
         createdAt: now,
         updatedAt: now,
+        repeat: p.repeat,
       };
       store.putItem(item);
     },
@@ -123,6 +126,18 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
     ensureGroup,
     addFromText,
     toggleDone: (item) => {
+      // 반복 항목의 하루치: 원래 반복 항목의 체크한 날짜 목록을 바꾼다
+      const series = item.seriesId ? items.find((i) => i.id === item.seriesId) : undefined;
+      if (series && item.date) {
+        const doneDates = series.doneDates ?? [];
+        store.putItem({
+          ...series,
+          doneDates: item.done ? doneDates.filter((d) => d !== item.date) : [...doneDates, item.date],
+          updatedAt: Date.now(),
+        });
+        if (!item.done) showToast(`'${item.title}' 완료`, () => store.putItem(series));
+        return;
+      }
       store.putItem({
         ...item,
         done: !item.done,
@@ -135,13 +150,21 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
       store.removeItem(item.id);
       showToast(`'${item.title}' 삭제했어요`, () => store.putItem(item));
     },
+    skipOccurrence: (series, date) => {
+      store.putItem({ ...series, skipDates: [...(series.skipDates ?? []), date], updatedAt: Date.now() });
+      showToast(`'${series.title}' ${shortLabel(date)} 하루만 뺐어요`, () => store.putItem(series));
+    },
     moveItems: (list, date, label) => {
       if (list.length === 0) return;
       const now = Date.now();
       list.forEach((it) => store.putItem({ ...it, date, updatedAt: now }));
       showToast(`${list.length}개를 ${label}로 옮겼어요`, () => list.forEach((it) => store.putItem(it)));
     },
-    openItem: (item) => setEditingId(item.id),
+    openItem: (item) => {
+      // 편집 창을 가리지 않게 전에 뜬 되돌리기 알림은 닫는다
+      setToast(null);
+      setEditing({ id: item.seriesId ?? item.id, occurrence: item.seriesId ? item.date : null });
+    },
     toggleSchoolDday: (key) => {
       const list = settings.importantSchoolEvents;
       store.putSettings({
@@ -151,7 +174,7 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
     },
   };
 
-  const editing = editingId ? items.find((i) => i.id === editingId) : undefined;
+  const editing = editingRef ? items.find((i) => i.id === editingRef.id) : undefined;
 
   return (
     <AppContext.Provider value={ctx}>
@@ -166,7 +189,14 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
             <SettingsView account={account} onBack={() => setPage('main')} />
           )}
         </main>
-        {editing && <ItemSheet key={editing.id} item={editing} onClose={() => setEditingId(null)} />}
+        {editing && (
+          <ItemSheet
+            key={editing.id}
+            item={editing}
+            occurrence={editingRef?.occurrence ?? null}
+            onClose={() => setEditing(null)}
+          />
+        )}
         <Toast toast={toast} onClose={closeToast} />
       </div>
     </AppContext.Provider>

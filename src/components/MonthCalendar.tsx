@@ -4,6 +4,7 @@ import { ItemList } from './ItemRow';
 import { QuickAdd } from './QuickAdd';
 import { PartialHint, SchoolEvents } from './School';
 import { makeDate, shortLabel, toISO } from '../lib/date';
+import { expandItems } from '../lib/repeat';
 import { itemsOnDate } from '../lib/views';
 import { useMonthEvents } from '../school';
 import type { Item } from '../store/types';
@@ -40,7 +41,9 @@ export function MonthCalendar({ items, groupId, showSchool }: Props) {
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const dayItems = itemsOnDate(items, selected);
+  // 반복 항목은 이 달 날짜로 펼쳐서 보여준다
+  const monthItems = expandItems(items, `${month}-01`, `${month}-${String(daysInMonth).padStart(2, '0')}`);
+  const dayItems = itemsOnDate(expandItems(items, selected, selected), selected);
   const dayEvents = showSchool ? (selectedEvents.data?.events.filter((e) => e.date === selected) ?? []) : [];
 
   return (
@@ -76,7 +79,7 @@ export function MonthCalendar({ items, groupId, showSchool }: Props) {
         ))}
         {cells.map((iso, i) => {
           if (!iso) return <div key={`e${i}`} className="cal-cell empty" />;
-          const mine = itemsOnDate(items, iso);
+          const mine = itemsOnDate(monthItems, iso);
           const school = showSchool ? (events.data?.events.filter((e) => e.date === iso) ?? []) : [];
           const holiday = school.some((e) => e.holiday);
           const labels = [
