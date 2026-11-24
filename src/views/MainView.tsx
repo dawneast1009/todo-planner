@@ -5,13 +5,22 @@ import { MonthCalendar } from '../components/MonthCalendar';
 import { QuickAdd } from '../components/QuickAdd';
 import { SchoolEvents } from '../components/School';
 import { WeekTimetable } from '../components/WeekTimetable';
+import { useMediaQuery } from '../hooks';
 import { ddayLabel, diffDays, fromISO, relativeLabel, shortLabel, weekdayName } from '../lib/date';
 import { ddayView, somedayView, todayView, upcomingView } from '../lib/views';
 import { useMonthEvents } from '../school';
 
-/** 오늘·예정·언젠가·달력·그룹을 한 화면에. 그룹은 위쪽 칩으로 거른다. */
+function Count({ n }: { n: number }) {
+  return n > 0 ? <span className="count">{n}</span> : null;
+}
+
+/**
+ * 오늘·시간표·예정·언젠가·달력을 한 화면에. 그룹은 위쪽 칩으로 거른다.
+ * 폰: 한 줄로 쭉. 넓은 화면: 왼쪽 할 일 목록, 오른쪽 시간표와 달력.
+ */
 export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { items, today, settings, groups, openItem } = useApp();
+  const wide = useMediaQuery('(min-width: 1000px)');
   const [filterId, setFilterId] = useState<string | null>(null);
   const filter = groups.find((g) => g.id === filterId) ?? null;
   const visible = filter ? items.filter((i) => i.groupId === filter.id) : items;
@@ -20,12 +29,16 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
   const upcoming = upcomingView(visible, today);
   const someday = somedayView(visible, today);
   const ddays = ddayView(visible, filter ? [] : settings.importantSchoolEvents, today);
+  const upcomingCount = upcoming.reduce((n, b) => n + b.items.filter((i) => !i.done).length, 0);
 
   const events = useMonthEvents(settings, today.slice(0, 7));
-  const todayEvents = events.data?.events.filter((e) => e.date === today) ?? [];
+  const todayEvents = filter ? [] : (events.data?.events.filter((e) => e.date === today) ?? []);
   const d = fromISO(today);
-  const todayEmpty = t.carried.length === 0 && t.today.length === 0 && t.done.length === 0;
+  const todayOpen = t.carried.length + t.today.length;
+  const todayEmpty = todayOpen === 0 && t.done.length === 0 && todayEvents.length === 0;
   const sortedGroups = groups.slice().sort((a, b) => a.createdAt - b.createdAt);
+
+  const timetable = !filter && <WeekTimetable onOpenSettings={onOpenSettings} />;
 
   return (
     <div className="main-grid">
@@ -34,8 +47,8 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
           <h1>
             {d.getMonth() + 1}월 {d.getDate()}일 <span className="muted">{weekdayName(today)}요일</span>
           </h1>
-          <button className="ghost icon-btn" onClick={onOpenSettings} aria-label="설정">
-            ⚙
+          <button className="settings-btn" onClick={onOpenSettings}>
+            <span aria-hidden>⚙</span> 설정
           </button>
         </header>
 
@@ -80,38 +93,43 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
           </div>
         )}
 
-        {!filter && <WeekTimetable onOpenSettings={onOpenSettings} />}
-
-        <section>
-          <h2 className="section-title">오늘</h2>
-          {!filter && <SchoolEvents events={todayEvents} />}
+        <section className="block">
+          <h2 className="section-title">
+            오늘 <Count n={todayOpen} />
+          </h2>
+          <SchoolEvents events={todayEvents} />
           {t.carried.length > 0 && (
             <>
-              <h3>밀린 할 일</h3>
+              <h3 className="sub-title warn">밀린 할 일</h3>
               <ItemList items={t.carried} carried hideGroup={!!filter} />
-              {t.today.length > 0 && <h3>오늘 할 일</h3>}
+              {t.today.length > 0 && <h3 className="sub-title">오늘 할 일</h3>}
             </>
           )}
           <ItemList items={t.today} hideGroup={!!filter} />
-          {todayEmpty && (filter || todayEvents.length === 0) && <p className="hint">오늘은 비어 있어요.</p>}
+          {todayEmpty && <p className="empty-line">오늘은 비어 있어요. 위에 한 줄 적어보세요.</p>}
           {t.done.length > 0 && (
             <>
-              <h3>완료</h3>
+              <h3 className="sub-title">완료 {t.done.length}</h3>
               <ItemList items={t.done} hideGroup={!!filter} />
             </>
           )}
         </section>
 
-        <section>
-          <h2 className="section-title">예정</h2>
-          {upcoming.length === 0 && <p className="hint">앞으로 잡힌 게 없어요.</p>}
+        {!wide && timetable}
+
+        <section className="block">
+          <h2 className="section-title">
+            예정 <Count n={upcomingCount} />
+          </h2>
+          {upcoming.length === 0 && <p className="empty-line">앞으로 잡힌 게 없어요.</p>}
           {upcoming.map((b) => {
             const rel = relativeLabel(b.date, today);
+            const n = diffDays(today, b.date);
             return (
               <div key={b.date} className="bucket">
-                <h3>
-                  {shortLabel(b.date)}
-                  <span className="muted"> · {rel.includes('/') ? `${diffDays(today, b.date)}일 뒤` : rel}</span>
+                <h3 className="date-title">
+                  <span>{shortLabel(b.date)}</span>
+                  <span className={`date-rel${n <= 2 ? ' soon' : ''}`}>{rel.includes('/') ? `${n}일 뒤` : rel}</span>
                 </h3>
                 <ItemList items={b.items} hideGroup={!!filter} />
               </div>
@@ -120,9 +138,9 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
         </section>
 
         {someday.length > 0 && (
-          <section>
+          <section className="block">
             <h2 className="section-title">
-              언젠가 <span className="muted">· 날짜 없음</span>
+              언젠가 <Count n={someday.filter((i) => !i.done).length} />
             </h2>
             <ItemList items={someday} hideGroup={!!filter} />
           </section>
@@ -130,6 +148,7 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
       </div>
 
       <aside className="side-col">
+        {wide && timetable}
         <MonthCalendar items={visible} groupId={filter?.id ?? null} showSchool={!filter} />
       </aside>
     </div>

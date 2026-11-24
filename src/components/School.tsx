@@ -5,7 +5,7 @@ import { schoolEventKey } from '../lib/views';
 /** 키 없이 받아서 일부만 보일 때 붙이는 안내 */
 export function PartialHint({ partial, what }: { partial: boolean | undefined; what: string }) {
   if (!partial) return null;
-  return <p className="hint">인증키가 없어서 {what} 일부만 보여요. 설정에서 나이스 인증키를 넣으면 전부 보여요.</p>;
+  return <p className="hint small-hint">인증키가 없어서 {what} 일부만 보여요 · 설정에서 키를 넣으면 전부 보여요</p>;
 }
 
 /** 학사일정 목록. 별을 누르면 D-day가 켜진다. */

@@ -40,7 +40,7 @@ export function QuickAdd({ date: defaultDate, groupId: defaultGroupId, placehold
           ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={placeholder ?? '예: 내일 3시 치과, 금요일까지 과제 #수행평가'}
+          placeholder={placeholder ?? '할 일 적기 · 예: 내일 3시 치과'}
           enterKeyHint="done"
           autoComplete="off"
           aria-label="새 항목"
