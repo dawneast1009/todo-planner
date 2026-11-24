@@ -13,7 +13,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['icon.svg', 'apple-touch-icon.png', 'push-sw.js'],
       manifest: {
         name: '할 일·일정',
         short_name: '할 일',
@@ -31,6 +31,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // 푸시 알림 처리 (public/push-sw.js)
+        importScripts: ['push-sw.js'],
         navigateFallback: `${base}index.html`,
         // 나이스 API 응답은 캐시하지 않는다(앱이 자체적으로 짧게 캐시함).
         navigateFallbackDenylist: [/^\/hub\//],
