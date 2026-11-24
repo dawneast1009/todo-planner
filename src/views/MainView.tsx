@@ -8,7 +8,15 @@ import { WeekTimetable } from '../components/WeekTimetable';
 import { useMediaQuery } from '../hooks';
 import { addDays, ddayLabel, diffDays, fromISO, relativeLabel, shortLabel, weekdayName } from '../lib/date';
 import { expandItems, nextOccurrences } from '../lib/repeat';
-import { ddayView, somedayView, todayView, upcomingView } from '../lib/views';
+import {
+  ddayView,
+  somedayView,
+  splitByGroup,
+  todayView,
+  upcomingView,
+  type DateBucket,
+  type GroupCard,
+} from '../lib/views';
 import { useMonthEvents } from '../school';
 
 function Count({ n }: { n: number }) {
@@ -20,7 +28,7 @@ function Count({ n }: { n: number }) {
  * 폰: 한 줄로 쭉. 넓은 화면: 왼쪽 할 일 목록, 오른쪽 시간표와 달력.
  */
 export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { items, today, settings, groups, openItem, moveItems } = useApp();
+  const { items, today, settings, groups, openItem, moveItems, groupName } = useApp();
   const wide = useMediaQuery('(min-width: 1000px)');
   const [filterId, setFilterId] = useState<string | null>(null);
   const filter = groups.find((g) => g.id === filterId) ?? null;
@@ -41,7 +49,23 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
     filter ? [] : settings.importantSchoolEvents,
     today,
   );
-  const upcomingCount = upcoming.reduce((n, b) => n + b.items.filter((i) => !i.done).length, 0);
+
+  // 전체 보기에서는 같은 그룹을 한 카드로 묶는다. 그룹 카드와 날짜 묶음은 가까운 날짜 순으로 섞어 보여준다.
+  // 그룹 칩으로 거른 상태에서는 전부 같은 그룹이니 날짜별 그대로.
+  const split = filter ? null : splitByGroup(upcoming.flatMap((b) => b.items), someday, today);
+  type Block = { key: string; date: string; group?: GroupCard; bucket?: DateBucket };
+  const blocks: Block[] = split
+    ? [
+        ...split.cards.map((c): Block => ({ key: `g:${c.groupId}`, date: c.items[0].date ?? '9999', group: c })),
+        ...split.buckets.map((b): Block => ({ key: `d:${b.date}`, date: b.date, bucket: b })),
+      ].sort((a, b) => (a.date === b.date ? (a.group ? -1 : 1) : a.date < b.date ? -1 : 1))
+    : upcoming.map((b) => ({ key: `d:${b.date}`, date: b.date, bucket: b }));
+  const somedayLeft = split ? split.someday : someday;
+  // 예정 개수: 화면의 예정 칸에 실제로 보이는 것 (그룹 카드 안의 날짜 없는 항목 포함)
+  const upcomingCount = blocks.reduce(
+    (n, b) => n + (b.group?.items ?? b.bucket?.items ?? []).filter((i) => !i.done).length,
+    0,
+  );
 
   const events = useMonthEvents(settings, today.slice(0, 7));
   const todayEvents = filter ? [] : (events.data?.events.filter((e) => e.date === today) ?? []);
@@ -141,12 +165,24 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
           <h2 className="section-title">
             예정 <Count n={upcomingCount} />
           </h2>
-          {upcoming.length === 0 && <p className="empty-line">앞으로 잡힌 게 없어요.</p>}
-          {upcoming.map((b) => {
+          {blocks.length === 0 && <p className="empty-line">앞으로 잡힌 게 없어요.</p>}
+          {blocks.map(({ key, group, bucket }) => {
+            if (group) {
+              return (
+                <div key={key} className="bucket group-card">
+                  <h3 className="date-title">
+                    <span>#{groupName(group.groupId)}</span>
+                    <span className="date-rel">{group.items.filter((i) => !i.done).length}개</span>
+                  </h3>
+                  <ItemList items={group.items} showDate hideGroup />
+                </div>
+              );
+            }
+            const b = bucket!;
             const rel = relativeLabel(b.date, today);
             const n = diffDays(today, b.date);
             return (
-              <div key={b.date} className="bucket">
+              <div key={key} className="bucket">
                 <h3 className="date-title">
                   <span>{shortLabel(b.date)}</span>
                   <span className={`date-rel${n <= 2 ? ' soon' : ''}`}>{rel.includes('/') ? `${n}일 뒤` : rel}</span>
@@ -157,12 +193,12 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
           })}
         </section>
 
-        {someday.length > 0 && (
+        {somedayLeft.length > 0 && (
           <section className="block">
             <h2 className="section-title">
-              언젠가 <Count n={someday.filter((i) => !i.done).length} />
+              언젠가 <Count n={somedayLeft.filter((i) => !i.done).length} />
             </h2>
-            <ItemList items={someday} hideGroup={!!filter} />
+            <ItemList items={somedayLeft} hideGroup={!!filter} />
           </section>
         )}
       </div>
