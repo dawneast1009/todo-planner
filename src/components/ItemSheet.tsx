@@ -3,6 +3,7 @@ import { useApp } from '../context';
 import { addDays, shortLabel } from '../lib/date';
 import type { Attachment, Item, ItemKind, RepeatRule } from '../store/types';
 import { Attachments } from './Attachments';
+import { extractLinks } from '../lib/links';
 
 const NEW_GROUP = '__new__';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -86,6 +87,7 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
           placeholder="메모 (선택)"
           rows={4}
         />
+        <MemoLinks memo={memo} />
         <Attachments attachments={attachments} onChange={setAttachments} />
 
         <div className="field-row">
@@ -222,5 +224,22 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
         </div>
       </div>
     </div>
+  );
+}
+
+/** 메모에 적은 주소를 누를 수 있는 링크로 보여준다 (메모 입력칸 안에서는 링크를 누를 수 없어서) */
+function MemoLinks({ memo }: { memo: string }) {
+  const links = extractLinks(memo);
+  if (links.length === 0) return null;
+  return (
+    <ul className="memo-links" aria-label="메모 속 링크">
+      {links.map((l) => (
+        <li key={l.href}>
+          <a href={l.href} target="_blank" rel="noopener noreferrer">
+            🔗 {l.label}
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }
