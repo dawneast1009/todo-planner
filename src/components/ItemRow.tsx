@@ -17,7 +17,8 @@ export function ItemRow({ item, showDate, carried, hideGroup }: Props) {
   const group = hideGroup ? null : groupName(item.groupId);
   const isEvent = item.kind === 'event';
   const memoLine = item.memo.trim().split('\n')[0];
-  const hasMeta = (carried && item.date) || (showDate && item.date) || group || item.repeat;
+  const attachCount = item.attachments?.length ?? 0;
+  const hasMeta = (carried && item.date) || (showDate && item.date) || group || item.repeat || attachCount;
 
   return (
     <li className={`row${item.done ? ' done' : ''}${isEvent ? ' event' : ''}`}>
@@ -46,6 +47,11 @@ export function ItemRow({ item, showDate, carried, hideGroup }: Props) {
               {showDate && !carried && item.date && <span>{relativeLabel(item.date, today)}</span>}
               {item.repeat && <span className="meta-repeat">↻ {repeatLabel(item.repeat)}</span>}
               {group && <span className="meta-group">#{group}</span>}
+              {attachCount > 0 && (
+                <span className="meta-attach" aria-label={`첨부 ${attachCount}개`}>
+                  📎{attachCount > 1 ? ` ${attachCount}` : ''}
+                </span>
+              )}
             </span>
           )}
         </span>

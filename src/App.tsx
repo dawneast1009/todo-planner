@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { AppContext, type AddDefaults, type AppCtx } from './context';
 import { ItemSheet } from './components/ItemSheet';
@@ -74,6 +74,18 @@ function Main({ store, account, uid = null }: { store: Store; account: React.Rea
   const showToast = useCallback((text: string, undo?: () => void) => setToast({ id: Date.now(), text, undo }), []);
   const closeToast = useCallback(() => setToast(null), []);
   const { items, groups, settings } = snap;
+
+  // 앱을 열고 잠시 뒤 한 번: 어떤 항목에도 안 붙은 첨부 파일(지운 항목의 파일 등)을 정리한다
+  const cleanedUp = useRef(false);
+  useEffect(() => {
+    if (!snap.ready || !store.files || cleanedUp.current) return;
+    const t = setTimeout(() => {
+      cleanedUp.current = true;
+      // 오프라인이면 조용히 건너뛰고 다음에 앱을 열 때 다시 한다
+      store.files!.cleanup().catch(() => {});
+    }, 10_000);
+    return () => clearTimeout(t);
+  }, [snap.ready, store]);
 
   const groupName = useCallback((id: string | null) => groups.find((g) => g.id === id)?.name ?? null, [groups]);
 

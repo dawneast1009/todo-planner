@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../context';
 import { addDays, shortLabel } from '../lib/date';
-import type { Item, ItemKind, RepeatRule } from '../store/types';
+import type { Attachment, Item, ItemKind, RepeatRule } from '../store/types';
+import { Attachments } from './Attachments';
 
 const NEW_GROUP = '__new__';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -28,6 +29,7 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
     item.repeat?.freq === 'weekly' ? item.repeat.days : [new Date().getDay()],
   );
   const [monthDay, setMonthDay] = useState(item.repeat?.freq === 'monthly' ? item.repeat.day : new Date().getDate());
+  const [attachments, setAttachments] = useState<Attachment[]>(item.attachments ?? []);
 
   const buildRepeat = (): RepeatRule | null => {
     if (freq === 'daily') return { freq: 'daily' };
@@ -51,6 +53,7 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
       groupId: groupId || null,
       important,
       repeat,
+      attachments,
     };
     if (JSON.stringify(next) !== JSON.stringify(item)) store.putItem({ ...next, updatedAt: Date.now() });
     onClose();
@@ -83,6 +86,7 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
           placeholder="메모 (선택)"
           rows={4}
         />
+        <Attachments attachments={attachments} onChange={setAttachments} />
 
         <div className="field-row">
           <label>
