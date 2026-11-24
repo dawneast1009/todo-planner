@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useApp } from '../context';
 import { ItemList } from '../components/ItemRow';
 import { QuickAdd } from '../components/QuickAdd';
-import { SchoolEvents, Timetable } from '../components/School';
+import { PartialHint, SchoolEvents, Timetable } from '../components/School';
 import { fromISO, makeDate, shortLabel, toISO } from '../lib/date';
 import { itemsOnDate } from '../lib/views';
-import { useMonthEvents, useWeekTimetable } from '../school';
+import { useMonthEvents, useTimetable } from '../school';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -21,7 +21,7 @@ export function CalendarView() {
   const [selected, setSelected] = useState(today);
   const events = useMonthEvents(settings, month);
   const selectedEvents = useMonthEvents(settings, selected.slice(0, 7));
-  const tt = useWeekTimetable(settings, selected);
+  const tt = useTimetable(settings, selected);
 
   const [y, m] = month.split('-').map(Number);
   const first = makeDate(y, m, 1)!;
@@ -33,7 +33,7 @@ export function CalendarView() {
   while (cells.length % 7 !== 0) cells.push(null);
 
   const dayItems = itemsOnDate(items, selected);
-  const dayEvents = selectedEvents.data?.filter((e) => e.date === selected) ?? [];
+  const dayEvents = selectedEvents.data?.events.filter((e) => e.date === selected) ?? [];
   const selDow = fromISO(selected).getDay();
 
   return (
@@ -70,7 +70,7 @@ export function CalendarView() {
         {cells.map((iso, i) => {
           if (!iso) return <div key={`e${i}`} className="cal-cell empty" />;
           const mine = itemsOnDate(items, iso);
-          const school = events.data?.filter((e) => e.date === iso) ?? [];
+          const school = events.data?.events.filter((e) => e.date === iso) ?? [];
           const holiday = school.some((e) => e.holiday);
           const labels = [
             ...school.map((e) => ({ key: `s${e.name}`, text: e.name, cls: 'lbl-school' })),
@@ -105,6 +105,7 @@ export function CalendarView() {
         })}
       </div>
       {events.error && <p className="hint">학사일정을 못 불러왔어요 ({events.error})</p>}
+      <PartialHint partial={events.data?.partial} what="이 달 학사일정" />
 
       <section className="day-panel">
         <h2>{shortLabel(selected)}</h2>
@@ -114,7 +115,12 @@ export function CalendarView() {
         {settings.school && selDow >= 1 && selDow <= 5 && (
           <details className="card tt-details">
             <summary>시간표</summary>
-            <Timetable periods={tt.data?.[selected]} loading={tt.loading} error={tt.error} />
+            <Timetable
+              periods={tt.data?.days[selected]}
+              partial={tt.data?.partial}
+              loading={tt.loading}
+              error={tt.error}
+            />
           </details>
         )}
         {dayItems.length === 0 && dayEvents.length === 0 && <p className="empty">이 날은 비어 있어요.</p>}

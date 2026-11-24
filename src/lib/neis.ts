@@ -2,14 +2,14 @@ import { compactISO, fromCompact } from './date';
 import type { SchoolConfig } from '../store/types';
 
 // 나이스 교육정보 개방 포털: https://open.neis.go.kr
-// 인증키 없이도 호출되지만 한 번에 5건까지만 준다(샘플 모드).
-// 그래서 키가 없으면 5건씩 페이지를 넘겨 받고, 키가 있으면 한 번에 받는다.
+// 인증키 없이도 호출되지만 샘플 모드라 요청 한 번에 처음 5건만 준다.
+// (pIndex를 바꿔도 같은 5건이 와서 나눠 받을 수도 없다.)
+// 그래서 키가 없으면 한 번만 부르고, 일부만 받았다고 partial로 알린다.
 
 const BASE = 'https://open.neis.go.kr/hub';
 const KEYLESS_PAGE = 5;
 const KEYED_PAGE = 1000;
-// 키 없이 너무 많이 부르지 않도록 상한을 둔다 (5건 × 40 = 200건)
-const KEYLESS_MAX_PAGES = 40;
+const KEYED_MAX_PAGES = 5;
 
 export interface SchoolInfo {
   officeCode: string;
@@ -58,41 +58,55 @@ export function parseNeisResponse(service: string, json: unknown): PageResult {
   return { total, rows };
 }
 
+interface FetchResult {
+  rows: Row[];
+  /** 키가 없어서 전체 중 일부만 받았는지 */
+  partial: boolean;
+}
+
 async function fetchAll(
   service: string,
   params: Record<string, string>,
   key: string,
   fetchFn: typeof fetch = fetch,
-): Promise<Row[]> {
+): Promise<FetchResult> {
   const size = key ? KEYED_PAGE : KEYLESS_PAGE;
-  const maxPages = key ? 5 : KEYLESS_MAX_PAGES;
+  const maxPages = key ? KEYED_MAX_PAGES : 1;
   const rows: Row[] = [];
+  let total = 0;
   for (let page = 1; page <= maxPages; page++) {
     const q = new URLSearchParams({ Type: 'json', pIndex: String(page), pSize: String(size), ...params });
     if (key) q.set('KEY', key);
     const res = await fetchFn(`${BASE}/${service}?${q}`);
     if (!res.ok) throw new NeisError(`HTTP ${res.status}`);
-    const { total, rows: pageRows } = parseNeisResponse(service, await res.json());
-    rows.push(...pageRows);
-    if (rows.length >= total || pageRows.length < size) break;
+    const parsed = parseNeisResponse(service, await res.json());
+    total = parsed.total;
+    rows.push(...parsed.rows);
+    if (rows.length >= total || parsed.rows.length < size) break;
   }
-  return rows;
+  return { rows, partial: rows.length < total };
 }
 
-export async function searchSchools(name: string, key: string, fetchFn?: typeof fetch): Promise<SchoolInfo[]> {
-  const rows = await fetchAll(
+export interface SchoolSearch {
+  schools: SchoolInfo[];
+  partial: boolean;
+}
+
+export async function searchSchools(name: string, key: string, fetchFn?: typeof fetch): Promise<SchoolSearch> {
+  const { rows, partial } = await fetchAll(
     'schoolInfo',
     { SCHUL_NM: name, SCHUL_KND_SC_NM: '고등학교' },
     key,
     fetchFn,
   );
-  return rows.map((r) => ({
+  const schools = rows.map((r) => ({
     officeCode: r.ATPT_OFCDC_SC_CODE ?? '',
     officeName: r.ATPT_OFCDC_SC_NM ?? '',
     schoolCode: r.SD_SCHUL_CODE ?? '',
     schoolName: r.SCHUL_NM ?? '',
     address: r.ORG_RDNMA ?? '',
   }));
+  return { schools, partial };
 }
 
 /** 날짜별 시간표. 같은 교시가 중복으로 오는 경우가 있어 교시당 하나만 남긴다. */
@@ -114,14 +128,19 @@ export function rowsToTimetable(rows: Row[]): Record<string, Period[]> {
   );
 }
 
+export interface TimetableResult {
+  days: Record<string, Period[]>;
+  partial: boolean;
+}
+
 export async function fetchTimetable(
   school: SchoolConfig,
   from: string,
   to: string,
   key: string,
   fetchFn?: typeof fetch,
-): Promise<Record<string, Period[]>> {
-  const rows = await fetchAll(
+): Promise<TimetableResult> {
+  const { rows, partial } = await fetchAll(
     'hisTimetable',
     {
       ATPT_OFCDC_SC_CODE: school.officeCode,
@@ -134,7 +153,7 @@ export async function fetchTimetable(
     key,
     fetchFn,
   );
-  return rowsToTimetable(rows);
+  return { days: rowsToTimetable(rows), partial };
 }
 
 const GRADE_FLAGS = [
@@ -168,14 +187,19 @@ export function rowsToSchoolEvents(rows: Row[], grade: string): SchoolEvent[] {
   return out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
 
+export interface SchoolEventsResult {
+  events: SchoolEvent[];
+  partial: boolean;
+}
+
 export async function fetchSchoolEvents(
   school: SchoolConfig,
   from: string,
   to: string,
   key: string,
   fetchFn?: typeof fetch,
-): Promise<SchoolEvent[]> {
-  const rows = await fetchAll(
+): Promise<SchoolEventsResult> {
+  const { rows, partial } = await fetchAll(
     'SchoolSchedule',
     {
       ATPT_OFCDC_SC_CODE: school.officeCode,
@@ -186,5 +210,5 @@ export async function fetchSchoolEvents(
     key,
     fetchFn,
   );
-  return rowsToSchoolEvents(rows, school.grade);
+  return { events: rowsToSchoolEvents(rows, school.grade), partial };
 }

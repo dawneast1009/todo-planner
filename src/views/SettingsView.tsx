@@ -46,8 +46,14 @@ function SchoolSettings() {
     setResults(null);
     try {
       const r = await searchSchools(query.trim(), settings.neisKey);
-      setResults(r);
-      setStatus(r.length === 0 ? '검색 결과가 없어요.' : null);
+      setResults(r.schools);
+      setStatus(
+        r.schools.length === 0
+          ? '검색 결과가 없어요.'
+          : r.partial
+            ? '결과가 많아 5개만 보여요. 학교 이름을 더 정확히 적어보세요.'
+            : null,
+      );
     } catch (err) {
       setStatus(`검색 실패: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -182,11 +188,11 @@ function NeisKeySettings() {
     <section className="card">
       <h2>나이스 인증키 (선택)</h2>
       <p className="hint">
-        없어도 동작해요. 키가 없으면 나이스가 5건씩만 줘서 여러 번 나눠 받아요. 느리면{' '}
+        키가 없으면 나이스가 한 번에 5건까지만 줘서 시간표가 5교시까지만, 학사일정은 일부만 보여요.{' '}
         <a href="https://open.neis.go.kr" target="_blank" rel="noreferrer">
           나이스 교육정보 개방 포털
         </a>
-        에서 무료로 발급받아 넣으세요. 키는 내 계정 데이터에만 저장돼요.
+        에 가입하고 인증키를 무료로 발급받아 넣으세요. 키는 내 계정 데이터에만 저장돼요.
       </p>
       <form
         className="inline-form"

@@ -4,15 +4,15 @@ import { QuickAdd } from '../components/QuickAdd';
 import { SchoolEvents, Timetable } from '../components/School';
 import { ddayLabel, fromISO, shortLabel, weekdayName } from '../lib/date';
 import { ddayView, todayView } from '../lib/views';
-import { useMonthEvents, useWeekTimetable } from '../school';
+import { useMonthEvents, useTimetable } from '../school';
 
 export function TodayView() {
   const { items, today, settings, openItem } = useApp();
   const v = todayView(items, today);
   const ddays = ddayView(items, settings.importantSchoolEvents, today);
-  const tt = useWeekTimetable(settings, today);
+  const tt = useTimetable(settings, today);
   const events = useMonthEvents(settings, today.slice(0, 7));
-  const todayEvents = events.data?.filter((e) => e.date === today) ?? [];
+  const todayEvents = events.data?.events.filter((e) => e.date === today) ?? [];
   const d = fromISO(today);
   const dow = d.getDay();
   const isWeekday = dow >= 1 && dow <= 5;
@@ -51,7 +51,14 @@ export function TodayView() {
 
       {settings.school && (isWeekday || todayEvents.length > 0) && (
         <section className="card">
-          {isWeekday && <Timetable periods={tt.data?.[today]} loading={tt.loading} error={tt.error} />}
+          {isWeekday && (
+            <Timetable
+              periods={tt.data?.days[today]}
+              partial={tt.data?.partial}
+              loading={tt.loading}
+              error={tt.error}
+            />
+          )}
           <SchoolEvents events={todayEvents} />
         </section>
       )}

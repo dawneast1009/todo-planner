@@ -58,20 +58,23 @@ describe('rowsToSchoolEvents', () => {
   });
 });
 
-describe('fetchAll paging', () => {
-  it('키가 없으면 5건씩 끝까지 넘겨 받는다', async () => {
-    const all = Array.from({ length: 12 }, (_, i) => ({
-      ALL_TI_YMD: '20261116',
-      PERIO: String(i + 1),
-      ITRT_CNTNT: `과목${i + 1}`,
-    }));
-    const urls: string[] = [];
-    const fakeFetch = (async (url: string) => {
+describe('fetchAll', () => {
+  const all = Array.from({ length: 7 }, (_, i) => ({
+    ALL_TI_YMD: '20261116',
+    PERIO: String(i + 1),
+    ITRT_CNTNT: `과목${i + 1}`,
+  }));
+  const school = { officeCode: 'B10', schoolCode: '1', schoolName: 'x', grade: '1', className: '1' };
+
+  // 실제 나이스처럼: 키가 없으면 pIndex와 상관없이 처음 5건만 준다
+  function fakeNeis(urls: string[]) {
+    return (async (url: string) => {
       urls.push(url);
       const u = new URL(url);
+      const hasKey = u.searchParams.has('KEY');
       const page = Number(u.searchParams.get('pIndex'));
-      const size = Number(u.searchParams.get('pSize'));
-      const rows = all.slice((page - 1) * size, page * size);
+      const size = hasKey ? Number(u.searchParams.get('pSize')) : 5;
+      const rows = hasKey ? all.slice((page - 1) * size, page * size) : all.slice(0, 5);
       return new Response(
         JSON.stringify({
           hisTimetable: [
@@ -81,10 +84,23 @@ describe('fetchAll paging', () => {
         }),
       );
     }) as typeof fetch;
-    const school = { officeCode: 'B10', schoolCode: '1', schoolName: 'x', grade: '1', className: '1' };
-    const tt = await fetchTimetable(school, '2026-11-16', '2026-11-20', '', fakeFetch);
-    expect(urls).toHaveLength(3);
-    expect(urls.every((u) => !u.includes('KEY='))).toBe(true);
-    expect(tt['2026-11-16']).toHaveLength(12);
+  }
+
+  it('키가 없으면 한 번만 부르고 일부라고 알린다', async () => {
+    const urls: string[] = [];
+    const tt = await fetchTimetable(school, '2026-11-16', '2026-11-16', '', fakeNeis(urls));
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).not.toContain('KEY=');
+    expect(tt.partial).toBe(true);
+    expect(tt.days['2026-11-16']).toHaveLength(5);
+  });
+
+  it('키가 있으면 전부 받는다', async () => {
+    const urls: string[] = [];
+    const tt = await fetchTimetable(school, '2026-11-16', '2026-11-20', 'test-key', fakeNeis(urls));
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain('KEY=test-key');
+    expect(tt.partial).toBe(false);
+    expect(tt.days['2026-11-16']).toHaveLength(7);
   });
 });
