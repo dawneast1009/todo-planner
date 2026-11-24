@@ -241,7 +241,7 @@ export function ItemSheet({ item, occurrence, onClose }: { item: Item; occurrenc
                   onClose();
                 }}
               >
-                {shortLabel(occurrence)}만 빼기
+                {shortLabel(occurrence, today)}만 빼기
               </button>
             )}
             <button type="button" className="danger" onClick={remove}>
@@ -325,7 +325,7 @@ function YearlyPicker({
       </div>
       {next && (
         <p className="hint">
-          다음: {shortLabel(next)}
+          다음: {shortLabel(next, today)}
           {lunar && ` (양력 ${Number(next.slice(0, 4))}년 ${Number(next.slice(5, 7))}월 ${Number(next.slice(8, 10))}일)`}
         </p>
       )}

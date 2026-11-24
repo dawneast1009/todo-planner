@@ -101,7 +101,7 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
                   >
                     <strong>{ddayLabel(x.date, today)}</strong>
                     <span className="dday-title">{x.title}</span>
-                    <span className="dday-date">{shortLabel(x.date)}</span>
+                    <span className="dday-date">{shortLabel(x.date, today)}</span>
                   </button>
                 </li>
               );
@@ -184,7 +184,7 @@ export function MainView({ onOpenSettings }: { onOpenSettings: () => void }) {
             return (
               <div key={key} className="bucket">
                 <h3 className="date-title">
-                  <span>{shortLabel(b.date)}</span>
+                  <span>{shortLabel(b.date, today)}</span>
                   <span className={`date-rel${n <= 2 ? ' soon' : ''}`}>{rel.includes('/') ? `${n}일 뒤` : rel}</span>
                 </h3>
                 <ItemList items={b.items} hideGroup={!!filter} />

@@ -127,10 +127,10 @@ export function MonthCalendar({ items, groupId, showSchool }: Props) {
         ) : (
           <>
             <h3 className="date-title">
-              <span>{shortLabel(selected)}</span>
+              <span>{shortLabel(selected, today)}</span>
               {lunarLabel(selected) && <span className="date-rel">{lunarLabel(selected)}</span>}
             </h3>
-            <QuickAdd date={selected} groupId={groupId} placeholder={`${shortLabel(selected)}에 추가`} />
+            <QuickAdd date={selected} groupId={groupId} placeholder={`${shortLabel(selected, today)}에 추가`} />
             <SchoolEvents events={dayEvents} />
             <ItemList items={dayItems} hideGroup={!!groupId} />
             {dayItems.length === 0 && dayEvents.length === 0 && <p className="empty-line">이 날은 비어 있어요.</p>}

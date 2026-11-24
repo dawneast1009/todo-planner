@@ -165,7 +165,7 @@ function Main({ store, account, uid = null }: { store: Store; account: React.Rea
     },
     skipOccurrence: (series, date) => {
       store.putItem({ ...series, skipDates: [...(series.skipDates ?? []), date], updatedAt: Date.now() });
-      showToast(`'${series.title}' ${shortLabel(date)} 하루만 뺐어요`, () => store.putItem(series));
+      showToast(`'${series.title}' ${shortLabel(date, today)} 하루만 뺐어요`, () => store.putItem(series));
     },
     moveItems: (list, date, label) => {
       if (list.length === 0) return;
