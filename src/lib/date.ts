@@ -51,10 +51,11 @@ export function fromCompact(s: string): string {
   return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 }
 
-/** 'M/D (요일)' */
-export function shortLabel(iso: string): string {
+/** 'M/D (요일)'. today를 주면 올해가 아닌 날짜에 연도를 붙인다: '2027년 8/13 (금)' */
+export function shortLabel(iso: string, today?: string): string {
   const d = fromISO(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
+  const year = today && iso.slice(0, 4) !== today.slice(0, 4) ? `${d.getFullYear()}년 ` : '';
+  return `${year}${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
 }
 
 /** 오늘 기준 상대 표현: 오늘, 내일, 모레, 그 외 '12/5 (금)' */
@@ -64,7 +65,7 @@ export function relativeLabel(iso: string, today: string): string {
   if (n === 1) return '내일';
   if (n === 2) return '모레';
   if (n === -1) return '어제';
-  return shortLabel(iso);
+  return shortLabel(iso, today);
 }
 
 export function ddayLabel(iso: string, today: string): string {
