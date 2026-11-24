@@ -48,8 +48,19 @@ export interface SchoolConfig {
   className: string;
 }
 
+export interface NotifySettings {
+  /** 아침 요약 시각 'HH:mm'. 빈 문자열이면 끔 */
+  morning: string;
+  /** 시간 있는 항목을 몇 분 전에 알릴지. 0이면 끔 */
+  eventLead: number;
+}
+
+export const DEFAULT_NOTIFY: NotifySettings = { morning: '07:30', eventLead: 30 };
+
 export interface Settings {
   school: SchoolConfig | null;
+  /** 알림 설정 (예전 데이터에는 없을 수 있다) */
+  notify?: NotifySettings;
   /** 나이스 인증키(선택). 레포가 아니라 사용자 데이터에만 저장된다. */
   neisKey: string;
   /** D-day를 켠 학사일정 키 목록 ('YYYY-MM-DD|행사명') */
