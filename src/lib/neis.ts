@@ -212,3 +212,70 @@ export async function fetchSchoolEvents(
   );
   return { events: rowsToSchoolEvents(rows, school.grade), partial };
 }
+
+export interface Meal {
+  /** 조식·중식·석식 */
+  kind: string;
+  dishes: string[];
+  calories: string;
+}
+
+/** '닭곰탕&소면 (5.6.15)<br/>깍두기 (9)' → ['닭곰탕&소면', '깍두기'] (알레르기 번호는 뺀다) */
+export function parseDishes(raw: string): string[] {
+  return raw
+    .split(/<br\s*\/?>/i)
+    .map((d) =>
+      d
+        .replace(/\(\s*[\d.\s]+\s*\)/g, '')
+        .replace(/[*#]+$/g, '')
+        .trim(),
+    )
+    .filter(Boolean);
+}
+
+/** 날짜별 급식. 조식→중식→석식 순서. */
+export function rowsToMeals(rows: Row[]): Record<string, Meal[]> {
+  const out: Record<string, Array<Meal & { code: number }>> = {};
+  for (const r of rows) {
+    if (!r.MLSV_YMD || !r.DDISH_NM) continue;
+    const date = fromCompact(r.MLSV_YMD);
+    (out[date] ??= []).push({
+      code: Number(r.MMEAL_SC_CODE ?? 0),
+      kind: r.MMEAL_SC_NM ?? '',
+      dishes: parseDishes(r.DDISH_NM),
+      calories: (r.CAL_INFO ?? '').trim(),
+    });
+  }
+  return Object.fromEntries(
+    Object.entries(out).map(([date, meals]) => [
+      date,
+      meals.sort((a, b) => a.code - b.code).map(({ kind, dishes, calories }) => ({ kind, dishes, calories })),
+    ]),
+  );
+}
+
+export interface MealsResult {
+  days: Record<string, Meal[]>;
+  partial: boolean;
+}
+
+export async function fetchMeals(
+  school: SchoolConfig,
+  from: string,
+  to: string,
+  key: string,
+  fetchFn?: typeof fetch,
+): Promise<MealsResult> {
+  const { rows, partial } = await fetchAll(
+    'mealServiceDietInfo',
+    {
+      ATPT_OFCDC_SC_CODE: school.officeCode,
+      SD_SCHUL_CODE: school.schoolCode,
+      MLSV_FROM_YMD: compactISO(from),
+      MLSV_TO_YMD: compactISO(to),
+    },
+    key,
+    fetchFn,
+  );
+  return { days: rowsToMeals(rows), partial };
+}

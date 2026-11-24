@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { fetchTimetable, NeisError, parseNeisResponse, rowsToSchoolEvents, rowsToTimetable } from './neis';
+import {
+  fetchTimetable,
+  NeisError,
+  parseDishes,
+  parseNeisResponse,
+  rowsToMeals,
+  rowsToSchoolEvents,
+  rowsToTimetable,
+} from './neis';
 
 describe('parseNeisResponse', () => {
   it('데이터 없음(INFO-200)은 빈 결과', () => {
@@ -102,5 +110,29 @@ describe('fetchAll', () => {
     expect(urls[0]).toContain('KEY=test-key');
     expect(tt.partial).toBe(false);
     expect(tt.days['2026-11-16']).toHaveLength(7);
+  });
+});
+
+describe('급식', () => {
+  it('메뉴에서 알레르기 번호와 줄바꿈 태그를 뺀다', () => {
+    expect(parseDishes('차조밥 <br/>닭곰탕&소면 (5.6.15)<br/>잠발라고등어구이 (1.2.5.7.12.13)<br/>깍두기 (9)')).toEqual([
+      '차조밥',
+      '닭곰탕&소면',
+      '잠발라고등어구이',
+      '깍두기',
+    ]);
+  });
+
+  it('날짜별로 묶고 조식·중식·석식 순서로', () => {
+    const rows = [
+      { MLSV_YMD: '20261124', MMEAL_SC_CODE: '3', MMEAL_SC_NM: '석식', DDISH_NM: '카레', CAL_INFO: '700 Kcal' },
+      { MLSV_YMD: '20261124', MMEAL_SC_CODE: '2', MMEAL_SC_NM: '중식', DDISH_NM: '비빔밥 (1.5)', CAL_INFO: '800 Kcal' },
+    ];
+    expect(rowsToMeals(rows)).toEqual({
+      '2026-11-24': [
+        { kind: '중식', dishes: ['비빔밥'], calories: '800 Kcal' },
+        { kind: '석식', dishes: ['카레'], calories: '700 Kcal' },
+      ],
+    });
   });
 });
