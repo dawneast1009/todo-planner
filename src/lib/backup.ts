@@ -1,4 +1,4 @@
-import type { Group, Item } from '../store/types';
+import type { Group, Item, RepeatRule } from '../store/types';
 
 export interface Backup {
   items: Item[];
@@ -13,6 +13,22 @@ const TIME_RE = /^\d{2}:\d{2}$/;
 const str = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
 const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 const dateOrNull = (v: unknown): string | null => (typeof v === 'string' && DATE_RE.test(v) ? v : null);
+const dateList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((d): d is string => typeof d === 'string' && DATE_RE.test(d)) : [];
+
+function parseRepeat(v: unknown): RepeatRule | null {
+  const r = v as { freq?: unknown; days?: unknown; day?: unknown } | null;
+  if (!r || typeof r !== 'object') return null;
+  if (r.freq === 'daily') return { freq: 'daily' };
+  if (r.freq === 'weekly' && Array.isArray(r.days)) {
+    const days = [...new Set(r.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+    return days.length ? { freq: 'weekly', days } : null;
+  }
+  if (r.freq === 'monthly' && Number.isInteger(r.day) && (r.day as number) >= 1 && (r.day as number) <= 31) {
+    return { freq: 'monthly', day: r.day as number };
+  }
+  return null;
+}
 
 /**
  * 내보낸 백업 JSON을 읽는다. 형식이 이상한 필드는 기본값으로 바꾸고,
@@ -57,6 +73,9 @@ export function parseBackup(text: string): Backup {
         groupId: groupIds.has(groupId) ? groupId : null,
         createdAt: num(i.createdAt, now),
         updatedAt: num(i.updatedAt, now),
+        repeat: date ? parseRepeat(i.repeat) : null,
+        doneDates: dateList(i.doneDates),
+        skipDates: dateList(i.skipDates),
       } satisfies Item;
     });
 

@@ -16,6 +16,9 @@ const item: Item = {
   groupId: 'g1',
   createdAt: 2,
   updatedAt: 3,
+  repeat: null,
+  doneDates: [],
+  skipDates: [],
 };
 
 describe('parseBackup', () => {
@@ -51,5 +54,17 @@ describe('parseBackup', () => {
       groupId: null,
       memo: '',
     });
+  });
+});
+
+describe('반복 백업', () => {
+  it('반복 규칙과 체크·건너뛴 날짜를 지킨다', () => {
+    const s = { ...item, id: 's', repeat: { freq: 'weekly' as const, days: [1, 3, 5] }, doneDates: ['2026-11-23'], skipDates: ['2026-11-25'] };
+    expect(parseBackup(backupFileContent([s], [group])).items[0]).toEqual(s);
+  });
+
+  it('이상한 반복 규칙은 버린다', () => {
+    const text = JSON.stringify({ items: [{ id: 'a', title: 'x', date: '2026-11-24', repeat: { freq: 'weekly', days: [9] } }] });
+    expect(parseBackup(text).items[0].repeat).toBeNull();
   });
 });
