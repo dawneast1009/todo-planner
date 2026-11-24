@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { GroupSettings } from '../components/GroupSettings';
 import { useApp } from '../context';
+import { BackupError, backupFileContent, parseBackup } from '../lib/backup';
 import { searchSchools, type SchoolInfo } from '../lib/neis';
 import type { SchoolConfig } from '../store/types';
 
-export function SettingsView({ account }: { account: React.ReactNode }) {
+export function SettingsView({ account, onBack }: { account: React.ReactNode; onBack: () => void }) {
   return (
-    <>
+    <div className="settings">
       <header className="view-head">
+        <button className="ghost icon-btn" onClick={onBack} aria-label="돌아가기">
+          ‹
+        </button>
         <h1>설정</h1>
       </header>
       <section className="card">
@@ -15,7 +20,8 @@ export function SettingsView({ account }: { account: React.ReactNode }) {
       </section>
       <SchoolSettings />
       <NeisKeySettings />
-      <ExportData />
+      <GroupSettings />
+      <BackupSettings />
       <section className="card">
         <h2>폰에 앱처럼 설치</h2>
         <p className="hint">
@@ -24,7 +30,7 @@ export function SettingsView({ account }: { account: React.ReactNode }) {
           안드로이드: Chrome 메뉴(⋮) → 홈 화면에 추가 / 앱 설치
         </p>
       </section>
-    </>
+    </div>
   );
 }
 
@@ -217,23 +223,60 @@ function NeisKeySettings() {
   );
 }
 
-function ExportData() {
-  const { items, groups } = useApp();
+function BackupSettings() {
+  const { items, groups, store, today } = useApp();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
+
   const download = () => {
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), items, groups }, null, 2)], {
-      type: 'application/json',
-    });
+    const blob = new Blob([backupFileContent(items, groups)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `todo-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `todo-backup-${today}.json`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
+
+  const restore = async (file: File) => {
+    setStatus(null);
+    try {
+      const backup = parseBackup(await file.text());
+      const ok = confirm(
+        `지금 데이터를 백업 파일 내용으로 덮어쓸까요?\n\n` +
+          `지금: 할 일 ${items.length}개, 그룹 ${groups.length}개\n` +
+          `백업: 할 일 ${backup.items.length}개, 그룹 ${backup.groups.length}개\n\n` +
+          `지금 데이터는 지워지고 되돌릴 수 없어요. 필요하면 먼저 '내보내기'로 저장해 두세요.`,
+      );
+      if (!ok) return;
+      await store.replaceAll(backup.items, backup.groups);
+      setStatus({ text: `복원했어요. 할 일 ${backup.items.length}개, 그룹 ${backup.groups.length}개` });
+    } catch (e) {
+      setStatus({ text: e instanceof BackupError ? e.message : `복원 실패: ${String(e)}`, error: true });
+    }
+  };
+
   return (
     <section className="card">
       <h2>백업</h2>
-      <p className="hint">할 일 {items.length}개, 그룹 {groups.length}개</p>
-      <button onClick={download}>JSON 파일로 내보내기</button>
+      <p className="hint">
+        지금 할 일 {items.length}개, 그룹 {groups.length}개. 설정(학교·인증키)은 백업에 들어가지 않아요.
+      </p>
+      <div className="btn-row">
+        <button onClick={download}>내보내기</button>
+        <button onClick={() => fileRef.current?.click()}>백업 파일로 덮어쓰기</button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) void restore(f);
+        }}
+      />
+      {status && <p className={status.error ? 'error' : 'hint'}>{status.text}</p>}
     </section>
   );
 }

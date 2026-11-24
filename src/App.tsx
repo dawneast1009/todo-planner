@@ -9,21 +9,8 @@ import { ChangePassword } from './components/ChangePassword';
 import { createFirebaseStore, firebaseEnabled, hasPassword, logOut, watchUser } from './store/firebase';
 import { createLocalStore } from './store/local';
 import { newId, type Item, type Store } from './store/types';
-import { CalendarView } from './views/CalendarView';
-import { GroupsView } from './views/GroupsView';
+import { MainView } from './views/MainView';
 import { SettingsView } from './views/SettingsView';
-import { TodayView } from './views/TodayView';
-import { UpcomingView } from './views/UpcomingView';
-
-type Tab = 'today' | 'upcoming' | 'calendar' | 'groups' | 'settings';
-
-const TABS: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: 'today', label: '오늘', icon: '☀' },
-  { id: 'upcoming', label: '예정', icon: '☰' },
-  { id: 'calendar', label: '달력', icon: '▦' },
-  { id: 'groups', label: '그룹', icon: '#' },
-  { id: 'settings', label: '설정', icon: '⚙' },
-];
 
 export function App() {
   return firebaseEnabled ? <CloudApp /> : <LocalApp />;
@@ -80,7 +67,7 @@ function CloudApp() {
 function Main({ store, account }: { store: Store; account: React.ReactNode }) {
   const snap = useSnapshot(store);
   const today = useToday();
-  const [tab, setTab] = useState<Tab>('today');
+  const [page, setPage] = useState<'main' | 'settings'>('main');
   const [editingId, setEditingId] = useState<string | null>(null);
   const { items, groups, settings } = snap;
 
@@ -150,32 +137,13 @@ function Main({ store, account }: { store: Store; account: React.ReactNode }) {
   return (
     <AppContext.Provider value={ctx}>
       <div className="app">
-        <nav className="tabs" aria-label="화면">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={tab === t.id ? 'on' : ''}
-              onClick={() => setTab(t.id)}
-              aria-current={tab === t.id ? 'page' : undefined}
-            >
-              <span className="tab-icon" aria-hidden>
-                {t.icon}
-              </span>
-              <span>{t.label}</span>
-            </button>
-          ))}
-        </nav>
-        <main className="content">
+        <main className={`content${page === 'main' ? ' wide' : ''}`}>
           {!snap.ready ? (
             <p className="empty">불러오는 중…</p>
+          ) : page === 'main' ? (
+            <MainView onOpenSettings={() => setPage('settings')} />
           ) : (
-            <>
-              {tab === 'today' && <TodayView />}
-              {tab === 'upcoming' && <UpcomingView />}
-              {tab === 'calendar' && <CalendarView />}
-              {tab === 'groups' && <GroupsView />}
-              {tab === 'settings' && <SettingsView account={account} />}
-            </>
+            <SettingsView account={account} onBack={() => setPage('main')} />
           )}
         </main>
         {editing && <ItemSheet key={editing.id} item={editing} onClose={() => setEditingId(null)} />}
