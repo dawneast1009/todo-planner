@@ -1583,3 +1583,12 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.school-grades {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.school-events .other-grade .school-name {
+  color: var(--faint);
+}
