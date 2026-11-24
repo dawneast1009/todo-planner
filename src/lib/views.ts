@@ -124,3 +124,48 @@ export function ddayView(items: Item[], importantSchoolKeys: string[], today: st
   }
   return out.sort((a, b) => (a.date === b.date ? a.title.localeCompare(b.title) : a.date < b.date ? -1 : 1));
 }
+
+export interface GroupCard {
+  groupId: string;
+  /** 날짜 있는 것 날짜순, 그다음 날짜 없는 것 */
+  items: Item[];
+}
+
+/**
+ * 예정·언젠가 항목 중 그룹이 있는 것은 그룹별 카드로 묶고, 나머지는 날짜별로 둔다.
+ * 그룹 카드는 가장 가까운 날짜가 있는 그룹부터 (날짜가 하나도 없는 그룹은 뒤로).
+ */
+export function splitByGroup(
+  upcoming: Item[],
+  someday: Item[],
+  today: string,
+): { cards: GroupCard[]; buckets: DateBucket[]; someday: Item[] } {
+  const byGroup = new Map<string, Item[]>();
+  for (const it of [...upcoming, ...someday]) {
+    if (!it.groupId) continue;
+    const list = byGroup.get(it.groupId) ?? [];
+    list.push(it);
+    byGroup.set(it.groupId, list);
+  }
+  const cards = [...byGroup.entries()]
+    .map(([groupId, list]) => ({
+      groupId,
+      items: list.sort((a, b) => {
+        if (!a.date !== !b.date) return a.date ? -1 : 1;
+        return byDateThenTime(a, b);
+      }),
+    }))
+    .sort((a, b) => {
+      const da = a.items[0].date ?? '9999';
+      const db = b.items[0].date ?? '9999';
+      return da === db ? a.items[0].createdAt - b.items[0].createdAt : da < db ? -1 : 1;
+    });
+  return {
+    cards,
+    buckets: upcomingView(
+      upcoming.filter((i) => !i.groupId),
+      today,
+    ),
+    someday: someday.filter((i) => !i.groupId),
+  };
+}

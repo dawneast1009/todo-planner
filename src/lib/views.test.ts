@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Item } from '../store/types';
-import { ddayView, groupView, somedayView, todayView, upcomingView } from './views';
+import { ddayView, groupView, somedayView, splitByGroup, todayView, upcomingView } from './views';
 
 const TODAY = '2026-11-24';
 let seq = 0;
@@ -110,5 +110,24 @@ describe('ddayView', () => {
       ['2026-12-03', '2학기 기말고사', 'school'],
       ['2026-12-10', '수학 발표', 'item'],
     ]);
+  });
+});
+
+describe('splitByGroup', () => {
+  it('그룹 있는 것은 그룹 카드로, 없는 것은 날짜별로', () => {
+    const a1 = item({ title: '국어 보고서', groupId: 'g1', date: '2026-11-27' });
+    const a2 = item({ title: '영어 발표', groupId: 'g1', date: '2026-11-25' });
+    const a3 = item({ title: '자료 모으기', groupId: 'g1' });
+    const b1 = item({ title: '학원 숙제', groupId: 'g2', date: '2026-11-30' });
+    const c1 = item({ title: '치과', date: '2026-11-25' });
+    const s1 = item({ title: '우유' });
+    const upcoming = [a1, a2, b1, c1];
+    const r = splitByGroup(upcoming, [a3, s1], TODAY);
+    expect(r.cards.map((c) => [c.groupId, c.items.map((i) => i.title)])).toEqual([
+      ['g1', ['영어 발표', '국어 보고서', '자료 모으기']],
+      ['g2', ['학원 숙제']],
+    ]);
+    expect(r.buckets.map((b) => [b.date, b.items.map((i) => i.title)])).toEqual([['2026-11-25', ['치과']]]);
+    expect(r.someday.map((i) => i.title)).toEqual(['우유']);
   });
 });
